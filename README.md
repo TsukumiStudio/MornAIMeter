@@ -12,7 +12,15 @@ Claude Code / Codex CLI / Antigravity の利用枠 (usage) をメニューバー
 brew install --cask matsufriends/tap/mornaimeter
 ```
 
-更新は `brew upgrade --cask mornaimeter`。
+## Homebrew での更新
+
+```bash
+brew update
+brew upgrade --cask mornaimeter
+```
+
+更新後はアプリを一度終了して起動し直してください。アンインストールは
+`brew uninstall --cask mornaimeter`。
 
 ## 前提
 
