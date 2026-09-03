@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
+    env:
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,3 +34,16 @@ jobs:
           else
             gh release create "$TAG" build/MornAIMeter.app.zip --repo "$GITHUB_REPOSITORY" --generate-notes
           fi
+
+      - name: Update Homebrew tap
+        if: ${{ env.TAP_TOKEN != '' }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA="$(shasum -a 256 build/MornAIMeter.app.zip | awk '{print $1}')"
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/matsufriends/homebrew-tap.git" tap
+          cd tap
+          sed -i "" -E "s/^  version \".*\"/  version \"${VERSION}\"/; s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" Casks/mornaimeter.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/mornaimeter.rb
+          git diff --cached --quiet || { git commit -m "mornaimeter ${VERSION}"; git push; }
