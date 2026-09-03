@@ -205,7 +205,7 @@ struct PopoverContentView: View {
                 Text("Antigravity").font(.caption).foregroundStyle(.secondary).frame(width: Self.rowHeadingWidth, alignment: .leading)
                 HStack(spacing: 8) {
                     UsageCardView(title: "Gemini 週次", content: antigravityCardContent(state.antigravityResult, lastGood: state.lastGoodAntigravity) { $0.gemini })
-                    UsageCardView(title: "Claude+GPT 週次", content: antigravityCardContent(state.antigravityResult, lastGood: state.lastGoodAntigravity) { $0.claudeGpt })
+                    UsageCardView(title: "Claude/GPT 週次 (Antigravity経由)", content: antigravityCardContent(state.antigravityResult, lastGood: state.lastGoodAntigravity) { $0.claudeGpt })
                 }
             }
 
