@@ -11,13 +11,14 @@ brew install --cask matsufriends/tap/mornaimeter
 
 更新は `brew upgrade --cask mornaimeter`。
 
-## 資格情報の読み取り元
+## 前提
 
-- **Claude**: Keychain の generic password (service `Claude Code-credentials`) から読む
-  (`claude login` 済みであること)。
-- **Codex**: `~/.codex/auth.json` から読む (`codex login` 済みであること)。
-
-どちらも読むだけで、書き換えは行わない。
+- Claude Code (`claude login`) と Codex CLI (`codex login`) にログイン済みであること。
+- このアプリは各 CLI がログイン時に保存したトークンを読み、Anthropic / OpenAI の公式
+  usage API に残り枠を問い合わせるだけ。トークンの書き換え・保存・外部送信は行わず、
+  通信先はこの 2 社の API のみで、独自サーバーは存在しない。
+- 初回起動時に macOS がアクセス許可ダイアログを 1 回表示する。「常に許可」を選ぶと
+  以後は表示されない。
 
 ## 開発
 
