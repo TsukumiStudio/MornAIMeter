@@ -19,6 +19,59 @@ jobs:
       - name: Build
         run: VERSION="${GITHUB_REF_NAME#v}" bash build-app.sh
 
+      - name: Sign & notarize via MornNotary
+        env:
+          GH_TOKEN: ${{ secrets.MORN_NOTARY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error::MORN_NOTARY_TOKEN secret is not set. Register a fine-grained PAT for matsufriends/MornNotary (Contents: read/write, Actions: read) as MORN_NOTARY_TOKEN."
+            exit 1
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          SUBMIT_ZIP="$(mktemp -d)/MornAIMeter.zip"
+          ditto -c -k --keepParent build/MornAIMeter.app "$SUBMIT_ZIP"
+
+          WORKDIR="$(mktemp -d)"
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/matsufriends/MornNotary.git" "$WORKDIR"
+          cp "$SUBMIT_ZIP" "$WORKDIR/incoming/MornAIMeter.zip"
+          cd "$WORKDIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add incoming/MornAIMeter.zip
+          git commit -m "request: sign MornAIMeter v${VERSION}"
+          git push
+          SHA="$(git rev-parse HEAD)"
+
+          RUN_ID=""
+          for i in $(seq 1 30); do
+            RUN_ID=$(gh run list --repo matsufriends/MornNotary --workflow sign.yml \
+              --json databaseId,headSha --jq ".[] | select(.headSha==\"$SHA\") | .databaseId" | head -1)
+            [ -n "$RUN_ID" ] && break
+            sleep 5
+          done
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::MornNotary workflow run did not start for commit $SHA"
+            exit 1
+          fi
+          echo "MornNotary run: $RUN_ID"
+          gh run watch "$RUN_ID" --repo matsufriends/MornNotary --exit-status
+
+          OUTDIR="$(mktemp -d)"
+          gh run download "$RUN_ID" --repo matsufriends/MornNotary --name "MornAIMeter-signed" --dir "$OUTDIR"
+          SIGNED_ZIP="$(find "$OUTDIR" -name '*.zip' | head -1)"
+          if [ -z "$SIGNED_ZIP" ]; then
+            echo "::error::Signed artifact not found in MornNotary run output"
+            exit 1
+          fi
+
+          cd "$GITHUB_WORKSPACE"
+          rm -rf build/MornAIMeter.app
+          ditto -x -k "$SIGNED_ZIP" build
+          codesign --verify --deep --strict --verbose=2 build/MornAIMeter.app
+          xcrun stapler validate build/MornAIMeter.app
+
       - name: Zip app
         run: |
           cd build
