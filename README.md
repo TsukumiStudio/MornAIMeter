@@ -19,8 +19,13 @@ brew update
 brew upgrade --cask mornaimeter
 ```
 
-更新後はアプリを一度終了して起動し直してください。アンインストールは
-`brew uninstall --cask mornaimeter`。
+更新後はアプリを一度終了して起動し直してください。
+
+## Homebrew でのアンインストール
+
+```bash
+brew uninstall --cask mornaimeter
+```
 
 ## 前提
 
