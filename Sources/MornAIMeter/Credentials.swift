@@ -32,6 +32,8 @@ enum CredentialError: Error, LocalizedError {
 enum Credentials {
     private static let cacheTTL: TimeInterval = 60 * 60
     private static var cachedToken: (token: String, fetchedAt: Date)?
+    private static var cachedAntigravityToken: (token: String, expiry: Date)?
+    private static var lastAgyRefreshAt: Date?
 
     /// security find-generic-password の標準出力 (末尾改行あり) から accessToken を取り出す純粋関数。
     static func parseClaudeAccessToken(fromSecurityOutput output: String) throws -> String {
@@ -52,16 +54,21 @@ enum Credentials {
            Date().timeIntervalSince(cached.fetchedAt) < cacheTTL {
             return cached.token
         }
-        let output = try runSecurityFindGenericPassword()
+        let output = try runSecurityFindGenericPassword(service: "Claude Code-credentials")
         let token = try parseClaudeAccessToken(fromSecurityOutput: output)
         cachedToken = (token, Date())
         return token
     }
 
-    private static func runSecurityFindGenericPassword() throws -> String {
+    private static func runSecurityFindGenericPassword(service: String, account: String? = nil) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
-        process.arguments = ["find-generic-password", "-s", "Claude Code-credentials", "-w"]
+        var arguments = ["find-generic-password", "-s", service]
+        if let account {
+            arguments += ["-a", account]
+        }
+        arguments.append("-w")
+        process.arguments = arguments
         let stdout = Pipe()
         process.standardOutput = stdout
         process.standardError = Pipe()
@@ -102,22 +109,96 @@ enum Credentials {
         return plain.date(from: value)
     }
 
-    /// ~/.gemini/jetski-standalone-oauth-token を読む。refresh は行わない (client_secret を保持しないため)。
-    static func antigravityAccessToken(now: Date = Date()) throws -> String {
-        let path = (NSHomeDirectory() as NSString).appendingPathComponent(".gemini/jetski-standalone-oauth-token")
-        guard let data = FileManager.default.contents(atPath: path) else {
-            throw CredentialError.fileNotFound
+    /// gemini/antigravity の Keychain 項目 (go-keyring-base64: プレフィックス + base64 の JSON、
+    /// またはプレフィックス無しの生 JSON) から accessToken と expiry を取り出す純粋関数。
+    static func parseAntigravityKeychainValue(_ raw: String) throws -> (accessToken: String, expiry: Date?) {
+        let trimmed = raw.trimmingCharacters(in: .newlines)
+        let prefix = "go-keyring-base64:"
+        let jsonString: String
+        if trimmed.hasPrefix(prefix) {
+            let base64Part = String(trimmed.dropFirst(prefix.count))
+            guard let decoded = Data(base64Encoded: base64Part),
+                  let decodedString = String(data: decoded, encoding: .utf8) else {
+                throw CredentialError.invalidJSON
+            }
+            jsonString = decodedString
+        } else {
+            jsonString = trimmed
         }
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let data = jsonString.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let token = json["token"] as? [String: Any],
-              let accessToken = token["access_token"] as? String,
-              let expiryString = token["expiry"] as? String,
-              let expiry = parseExpiry(expiryString) else {
+              let accessToken = token["access_token"] as? String else {
             throw CredentialError.invalidJSON
         }
-        guard expiry > now else {
+        let expiry = (token["expiry"] as? String).flatMap { parseExpiry($0) }
+        return (accessToken, expiry)
+    }
+
+    private static func readAntigravityKeychain() throws -> (accessToken: String, expiry: Date?) {
+        let raw = try runSecurityFindGenericPassword(service: "gemini", account: "antigravity")
+        return try parseAntigravityKeychainValue(raw)
+    }
+
+    /// gemini/antigravity の Keychain 項目を読む。期限切れ (60 秒未満を含む) のときは
+    /// agy -p ping を裏起動して Keychain を更新させてから 1 回だけ読み直す。
+    static func antigravityAccessToken(now: Date = Date()) throws -> String {
+        let notExpiringSoon: (Date?) -> Bool = { expiry in
+            guard let expiry else { return false }
+            return expiry.timeIntervalSince(now) >= 60
+        }
+        if let cached = cachedAntigravityToken, notExpiringSoon(cached.expiry) {
+            return cached.token
+        }
+        let first = try readAntigravityKeychain()
+        if notExpiringSoon(first.expiry), let expiry = first.expiry {
+            cachedAntigravityToken = (first.accessToken, expiry)
+            return first.accessToken
+        }
+        refreshAntigravityTokenViaAgy()
+        let second = try readAntigravityKeychain()
+        guard notExpiringSoon(second.expiry), let expiry = second.expiry else {
             throw CredentialError.expired
         }
-        return accessToken
+        cachedAntigravityToken = (second.accessToken, expiry)
+        return second.accessToken
+    }
+
+    /// agy -p ping を stdin なしで裏起動し、Keychain のトークンを更新させる。
+    /// 見つからない/直近5分以内に実行済みなら何もしない。最大20秒待って諦める。
+    private static func refreshAntigravityTokenViaAgy() {
+        let now = Date()
+        if let last = lastAgyRefreshAt, now.timeIntervalSince(last) < 300 {
+            return
+        }
+        guard let agyPath = findAgyExecutable() else { return }
+        lastAgyRefreshAt = now
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: agyPath)
+        process.arguments = ["-p", "ping"]
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return
+        }
+        let semaphore = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in semaphore.signal() }
+        if semaphore.wait(timeout: .now() + 20) == .timedOut {
+            process.terminate()
+        }
+    }
+
+    private static func findAgyExecutable() -> String? {
+        let home = NSHomeDirectory()
+        let candidates = [
+            "\(home)/.local/bin/agy",
+            "/opt/homebrew/bin/agy",
+            "/usr/local/bin/agy",
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 }
