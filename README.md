@@ -9,10 +9,10 @@ Claude Code / Codex CLI の利用枠 (usage) をメニューバーの円グラ�
 brew install --cask matsufriends/tap/mornaimeter
 ```
 
-ad-hoc 署名のため Gatekeeper にブロックされる場合は `--no-quarantine` を付けて入れる。
+ad-hoc 署名のため初回起動が Gatekeeper にブロックされる場合は、quarantine 属性を外してから起動する。
 
 ```bash
-brew install --cask --no-quarantine matsufriends/tap/mornaimeter
+xattr -d com.apple.quarantine /Applications/MornAIMeter.app
 ```
 
 更新は `brew upgrade --cask mornaimeter`。
