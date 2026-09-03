@@ -528,16 +528,16 @@ final class UsageMappingTests: XCTestCase {
     // MARK: - Formatting: paceLabel
 
     func testPaceLabelWithinOnePointIsEvenPace() {
-        XCTAssertEqual(UsageFormat.paceLabel(0.5), "ほぼ均等ペース")
-        XCTAssertEqual(UsageFormat.paceLabel(-0.9), "ほぼ均等ペース")
+        XCTAssertEqual(UsageFormat.paceLabel(0.5), "ちょうど")
+        XCTAssertEqual(UsageFormat.paceLabel(-0.9), "ちょうど")
     }
 
     func testPaceLabelPositiveDifferenceIsLeading() {
-        XCTAssertEqual(UsageFormat.paceLabel(12.4), "均等より 12pt先行")
+        XCTAssertEqual(UsageFormat.paceLabel(12.4), "使いすぎ +12pt")
     }
 
     func testPaceLabelNegativeDifferenceIsSlack() {
-        XCTAssertEqual(UsageFormat.paceLabel(-8.0), "均等より 8pt余裕")
+        XCTAssertEqual(UsageFormat.paceLabel(-8.0), "余裕 8pt")
     }
 
     // MARK: - AppState.shouldFetch

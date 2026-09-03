@@ -55,8 +55,10 @@ enum UsageFormat {
     /// worker/src/index.js の paceLabel (649〜651行) の移植。
     static func paceLabel(_ difference: Double) -> String {
         abs(difference) < 1
-            ? "ほぼ均等ペース"
-            : "均等より " + String(format: "%.0f", abs(difference)) + "pt" + (difference > 0 ? "先行" : "余裕")
+            ? "ちょうど"
+            : difference > 0
+                ? "使いすぎ +" + String(format: "%.0f", difference) + "pt"
+                : "余裕 " + String(format: "%.0f", abs(difference)) + "pt"
     }
 }
 
