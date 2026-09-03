@@ -140,6 +140,75 @@ final class UsageMappingTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(usage.weekly).windowSeconds, 604_800)
     }
 
+    // MARK: - Antigravity
+
+    func testMapAntigravitySampleResponse() throws {
+        let json: [String: Any] = [
+            "groups": [
+                [
+                    "displayName": "Gemini Models",
+                    "description": "...",
+                    "buckets": [
+                        ["bucketId": "gemini-weekly", "displayName": "Weekly Limit Remaining", "window": "weekly", "resetTime": "2026-09-05T10:09:14Z", "remainingFraction": 0.9089336],
+                    ],
+                ],
+                [
+                    "displayName": "Claude and GPT models",
+                    "buckets": [
+                        ["bucketId": "3p-weekly", "window": "weekly", "resetTime": "2026-09-10T10:06:55Z", "remainingFraction": 1],
+                    ],
+                ],
+            ],
+            "description": "...",
+        ]
+        let usage = UsageMapping.mapAntigravity(json)
+
+        let gemini = try XCTUnwrap(usage.gemini)
+        XCTAssertEqual(gemini.percent, 9.10664, accuracy: 0.01)
+        XCTAssertEqual(gemini.windowSeconds, 604_800)
+        XCTAssertEqual(gemini.resetsAt, ISO8601DateFormatter().date(from: "2026-09-05T10:09:14Z"))
+
+        let claudeGpt = try XCTUnwrap(usage.claudeGpt)
+        XCTAssertEqual(claudeGpt.percent, 0, accuracy: 0.01)
+    }
+
+    func testMapAntigravityFallsBackToDisplayNameWhenBucketIdUnknown() throws {
+        let json: [String: Any] = [
+            "groups": [
+                ["displayName": "Gemini Models", "buckets": [["bucketId": "unknown", "window": "weekly", "remainingFraction": 0.5]]],
+                ["displayName": "Claude and GPT models", "buckets": [["bucketId": "unknown", "window": "weekly", "remainingFraction": 0.2]]],
+            ]
+        ]
+        let usage = UsageMapping.mapAntigravity(json)
+        XCTAssertEqual(try XCTUnwrap(usage.gemini).percent, 50, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(usage.claudeGpt).percent, 80, accuracy: 0.01)
+    }
+
+    func testMapAntigravityMissingRemainingFractionIsNil() {
+        let json: [String: Any] = [
+            "groups": [
+                ["displayName": "Gemini Models", "buckets": [["bucketId": "gemini-weekly", "window": "weekly"]]],
+            ]
+        ]
+        let usage = UsageMapping.mapAntigravity(json)
+        XCTAssertNil(usage.gemini)
+        XCTAssertNil(usage.claudeGpt)
+    }
+
+    // MARK: - Credentials: Antigravity expiry
+
+    func testParseExpiryWithFractionalSeconds() throws {
+        // 日本時間 (+09:00) の小数秒付き文字列が UTC の同時刻へ正しく変換されることを確認する。
+        let date = try XCTUnwrap(Credentials.parseExpiry("2026-09-03T19:23:38.905747+09:00"))
+        let utc = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-03T10:23:38Z"))
+        XCTAssertEqual(date.timeIntervalSince1970, utc.timeIntervalSince1970, accuracy: 1.0)
+    }
+
+    func testParseExpiryWithoutFractionalSeconds() throws {
+        let date = try XCTUnwrap(Credentials.parseExpiry("2026-09-03T10:23:38Z"))
+        XCTAssertEqual(date, ISO8601DateFormatter().date(from: "2026-09-03T10:23:38Z"))
+    }
+
     // MARK: - Formatting: remain
 
     func testRemainMinutesOnly() {
@@ -258,6 +327,33 @@ final class UsageMappingTests: XCTestCase {
             MenuBarGaugeSelection.selected(claude5h: false, claudeWeekly: true, claudeScoped: false, codexWeekly: false, codexAdditional: false),
             [.claudeWeekly]
         )
+    }
+
+    func testMenuBarGaugeSelectionSelectedAntigravityTrailsFixedOrder() {
+        XCTAssertEqual(
+            MenuBarGaugeSelection.selected(
+                claude5h: true,
+                claudeWeekly: false,
+                claudeScoped: false,
+                codexWeekly: false,
+                codexAdditional: false,
+                antigravityGemini: true,
+                antigravityClaudeGpt: true
+            ),
+            [.claude5h, .antigravityGemini, .antigravityClaudeGpt]
+        )
+    }
+
+    func testMenuBarGaugeSelectionAntigravityPercent() throws {
+        let antigravity = Result<AntigravityUsage, ServiceUsageError>.success(
+            AntigravityUsage(
+                gemini: WindowUsage(percent: 9, resetsAt: nil, windowSeconds: 604_800),
+                claudeGpt: WindowUsage(percent: 0, resetsAt: nil, windowSeconds: 604_800)
+            )
+        )
+        XCTAssertEqual(MenuBarGaugeSelection.percent(for: .antigravityGemini, claude: nil, codex: nil, antigravity: antigravity), 9)
+        XCTAssertEqual(MenuBarGaugeSelection.percent(for: .antigravityClaudeGpt, claude: nil, codex: nil, antigravity: antigravity), 0)
+        XCTAssertNil(MenuBarGaugeSelection.percent(for: .antigravityGemini, claude: nil, codex: nil, antigravity: nil))
     }
 
     func testMenuBarGaugeSelectionSelectedNoneIsEmpty() {

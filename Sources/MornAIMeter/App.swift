@@ -8,6 +8,8 @@ struct MornAIMeterApp: App {
     @AppStorage("menuBarShowClaudeScoped") private var showClaudeScoped = false
     @AppStorage("menuBarShowCodexWeekly") private var showCodexWeekly = false
     @AppStorage("menuBarShowCodexAdditional") private var showCodexAdditional = false
+    @AppStorage("menuBarShowAntigravityGemini") private var showAntigravityGemini = false
+    @AppStorage("menuBarShowAntigravityClaudeGpt") private var showAntigravityClaudeGpt = false
 
     var body: some Scene {
         MenuBarExtra {
@@ -18,7 +20,9 @@ struct MornAIMeterApp: App {
                 claudeWeekly: showClaudeWeekly,
                 claudeScoped: showClaudeScoped,
                 codexWeekly: showCodexWeekly,
-                codexAdditional: showCodexAdditional
+                codexAdditional: showCodexAdditional,
+                antigravityGemini: showAntigravityGemini,
+                antigravityClaudeGpt: showAntigravityClaudeGpt
             )
             if selections.isEmpty {
                 Text("--")
@@ -26,7 +30,8 @@ struct MornAIMeterApp: App {
                 Image(nsImage: GaugeImage.make(params: MenuBarGaugeSelection.gaugeParams(
                     selections: selections,
                     claude: state.claudeResult,
-                    codex: state.codexResult
+                    codex: state.codexResult,
+                    antigravity: state.antigravityResult
                 )))
             }
         }

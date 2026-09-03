@@ -19,6 +19,11 @@ struct ClaudeUsage: Equatable {
     var scoped: NamedWindow?
 }
 
+struct AntigravityUsage: Equatable {
+    var gemini: WindowUsage?
+    var claudeGpt: WindowUsage?
+}
+
 struct CodexUsage: Equatable {
     var primary: WindowUsage?
     var secondary: WindowUsage?
@@ -43,6 +48,8 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
     case claudeScoped
     case codexWeekly
     case codexAdditional
+    case antigravityGemini
+    case antigravityClaudeGpt
 
     var id: String { rawValue }
 
@@ -58,17 +65,29 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         case .claudeScoped: return "Claude 週次 (\(scopedName ?? "Fable"))"
         case .codexWeekly: return "Codex 週次枠"
         case .codexAdditional: return "Codex Spark"
+        case .antigravityGemini: return "Antigravity Gemini 週次"
+        case .antigravityClaudeGpt: return "Antigravity Claude+GPT 週次"
         }
     }
 
-    /// チェック状態から、メニューバーに固定順 (claude5h, claudeWeekly, claudeScoped, codexWeekly, codexAdditional) で表示する枠の配列を決める純粋関数 (単体テスト対象)。
-    static func selected(claude5h: Bool, claudeWeekly: Bool, claudeScoped: Bool, codexWeekly: Bool, codexAdditional: Bool) -> [MenuBarGaugeSelection] {
+    /// チェック状態から、メニューバーに固定順 (claude5h, claudeWeekly, claudeScoped, codexWeekly, codexAdditional, antigravityGemini, antigravityClaudeGpt) で表示する枠の配列を決める純粋関数 (単体テスト対象)。
+    static func selected(
+        claude5h: Bool,
+        claudeWeekly: Bool,
+        claudeScoped: Bool,
+        codexWeekly: Bool,
+        codexAdditional: Bool,
+        antigravityGemini: Bool = false,
+        antigravityClaudeGpt: Bool = false
+    ) -> [MenuBarGaugeSelection] {
         var result: [MenuBarGaugeSelection] = []
         if claude5h { result.append(.claude5h) }
         if claudeWeekly { result.append(.claudeWeekly) }
         if claudeScoped { result.append(.claudeScoped) }
         if codexWeekly { result.append(.codexWeekly) }
         if codexAdditional { result.append(.codexAdditional) }
+        if antigravityGemini { result.append(.antigravityGemini) }
+        if antigravityClaudeGpt { result.append(.antigravityClaudeGpt) }
         return result
     }
 
@@ -76,7 +95,8 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
     static func window(
         for selection: MenuBarGaugeSelection,
         claude: Result<ClaudeUsage, ServiceUsageError>?,
-        codex: Result<CodexUsage, ServiceUsageError>?
+        codex: Result<CodexUsage, ServiceUsageError>?,
+        antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil
     ) -> WindowUsage? {
         switch selection {
         case .claude5h:
@@ -94,6 +114,12 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         case .codexAdditional:
             guard case .success(let usage)? = codex else { return nil }
             return usage.additional?.window
+        case .antigravityGemini:
+            guard case .success(let usage)? = antigravity else { return nil }
+            return usage.gemini
+        case .antigravityClaudeGpt:
+            guard case .success(let usage)? = antigravity else { return nil }
+            return usage.claudeGpt
         }
     }
 
@@ -101,9 +127,10 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
     static func percent(
         for selection: MenuBarGaugeSelection,
         claude: Result<ClaudeUsage, ServiceUsageError>?,
-        codex: Result<CodexUsage, ServiceUsageError>?
+        codex: Result<CodexUsage, ServiceUsageError>?,
+        antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil
     ) -> Double? {
-        window(for: selection, claude: claude, codex: codex)?.percent
+        window(for: selection, claude: claude, codex: codex, antigravity: antigravity)?.percent
     }
 
     /// メニューバーの円グラフ1個ぶんの描画パラメータ。値が取れない枠は usedFraction が nil (輪郭だけの空円)。
@@ -111,10 +138,11 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         selections: [MenuBarGaugeSelection],
         claude: Result<ClaudeUsage, ServiceUsageError>?,
         codex: Result<CodexUsage, ServiceUsageError>?,
+        antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil,
         now: Date = Date()
     ) -> [GaugeCircleParams] {
         selections.map { selection in
-            guard let w = window(for: selection, claude: claude, codex: codex) else {
+            guard let w = window(for: selection, claude: claude, codex: codex, antigravity: antigravity) else {
                 return GaugeCircleParams(usedFraction: nil, elapsedFraction: nil)
             }
             let elapsed = UsageFormat.windowPosition(
@@ -185,6 +213,40 @@ enum UsageMapping {
             }
         }
         return usage
+    }
+
+    /// retrieveUserQuotaSummary の groups[].buckets[] を Gemini / Claude+GPT の週次枠に振り分ける純粋関数。
+    /// bucketId (gemini-weekly / 3p-weekly) を優先し、決まらなければ group の displayName で判定する。
+    static func mapAntigravity(_ json: [String: Any]) -> AntigravityUsage {
+        var usage = AntigravityUsage()
+        guard let groups = json["groups"] as? [[String: Any]] else { return usage }
+        for group in groups {
+            let displayName = group["displayName"] as? String ?? ""
+            guard let buckets = group["buckets"] as? [[String: Any]] else { continue }
+            for bucket in buckets {
+                guard let window = antigravityWindow(bucket) else { continue }
+                switch bucket["bucketId"] as? String {
+                case "gemini-weekly":
+                    usage.gemini = window
+                case "3p-weekly":
+                    usage.claudeGpt = window
+                default:
+                    if displayName.contains("Gemini") {
+                        usage.gemini = window
+                    } else if displayName.contains("Claude") {
+                        usage.claudeGpt = window
+                    }
+                }
+            }
+        }
+        return usage
+    }
+
+    /// remainingFraction が欠落している枠は値が不明なため nil を返す。
+    private static func antigravityWindow(_ bucket: [String: Any]) -> WindowUsage? {
+        guard let remainingFraction = (bucket["remainingFraction"] as? NSNumber)?.doubleValue else { return nil }
+        let windowSeconds: Double = (bucket["window"] as? String) == "weekly" ? 7 * 86400 : 0
+        return WindowUsage(percent: (1 - remainingFraction) * 100, resetsAt: parseDate(bucket["resetTime"]), windowSeconds: windowSeconds)
     }
 
     /// resets_at / reset_at は Claude・Codex とも epoch 秒 (数値) か ISO8601 文字列のどちらかで来る。

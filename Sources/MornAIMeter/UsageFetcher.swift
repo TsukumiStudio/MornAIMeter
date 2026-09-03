@@ -38,6 +38,44 @@ enum RetryAfterParsing {
 }
 
 enum UsageFetcher {
+    /// これが無いと 403 SUBSCRIPTION_REQUIRED になる (診断で実測済み)。
+    private static let antigravityUserAgent = "antigravity/1.1.25"
+
+    static func fetchAntigravity() async -> Result<AntigravityUsage, ServiceUsageError> {
+        do {
+            let token = try Credentials.antigravityAccessToken()
+            var request = URLRequest(url: URL(string: "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary")!)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(antigravityUserAgent, forHTTPHeaderField: "User-Agent")
+            request.httpBody = try JSONSerialization.data(withJSONObject: ["project": "aicode-consumers"])
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                return .failure(.network("不明な応答"))
+            }
+            if http.statusCode == 401 || http.statusCode == 403 {
+                return .failure(.needsLogin("agy"))
+            }
+            guard http.statusCode == 200 else {
+                if http.statusCode == 429 {
+                    let now = Date()
+                    let retryNotBefore = RetryAfterParsing.parse(header: http.value(forHTTPHeaderField: "Retry-After"), now: now)
+                    return .failure(.network("usage API 429", retryNotBefore: retryNotBefore))
+                }
+                return .failure(.network("usage API \(http.statusCode)"))
+            }
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return .failure(.network("応答の解析に失敗しました"))
+            }
+            return .success(UsageMapping.mapAntigravity(json))
+        } catch is CredentialError {
+            return .failure(.needsLogin("agy"))
+        } catch {
+            return .failure(.network(error.localizedDescription))
+        }
+    }
+
     static func fetchClaude() async -> Result<ClaudeUsage, ServiceUsageError> {
         do {
             let token = try Credentials.claudeAccessToken()

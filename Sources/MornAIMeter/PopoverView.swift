@@ -130,6 +130,25 @@ private func codexCardContent(
     }
 }
 
+private func antigravityCardContent(
+    _ result: Result<AntigravityUsage, ServiceUsageError>?,
+    lastGood: AntigravityUsage?,
+    _ window: (AntigravityUsage) -> WindowUsage?
+) -> UsageCardView.Content {
+    if let good = lastGood, let w = window(good) {
+        let errorMessage: String? = { if case .failure(let error)? = result { return error.errorDescription ?? "取得失敗" }; return nil }()
+        return cardContent(percent: w.percent, resetsAt: w.resetsAt, windowSeconds: w.windowSeconds, errorMessage: errorMessage)
+    }
+    guard let result else { return .noData }
+    switch result {
+    case .failure(let error):
+        return .message(error.errorDescription ?? "取得失敗")
+    case .success(let usage):
+        guard let w = window(usage) else { return .noData }
+        return cardContent(percent: w.percent, resetsAt: w.resetsAt, windowSeconds: w.windowSeconds)
+    }
+}
+
 /// 直前成功値 → 現在の成功値の順で、scoped/additional の名前を探す。両方無ければ nil。
 private func scopedName(_ result: Result<ClaudeUsage, ServiceUsageError>?, lastGood: ClaudeUsage?) -> String? {
     if let name = lastGood?.scoped?.name { return name }
@@ -144,6 +163,8 @@ struct PopoverContentView: View {
     @AppStorage("menuBarShowClaudeScoped") private var showClaudeScoped = false
     @AppStorage("menuBarShowCodexWeekly") private var showCodexWeekly = false
     @AppStorage("menuBarShowCodexAdditional") private var showCodexAdditional = false
+    @AppStorage("menuBarShowAntigravityGemini") private var showAntigravityGemini = false
+    @AppStorage("menuBarShowAntigravityClaudeGpt") private var showAntigravityClaudeGpt = false
     @StateObject private var loginItem = LoginItemState()
 
     private static let rowHeadingWidth: CGFloat = 74
@@ -180,6 +201,14 @@ struct PopoverContentView: View {
                 }
             }
 
+            HStack(alignment: .top, spacing: 8) {
+                Text("Antigravity").font(.caption).foregroundStyle(.secondary).frame(width: Self.rowHeadingWidth, alignment: .leading)
+                HStack(spacing: 8) {
+                    UsageCardView(title: "Gemini 週次", content: antigravityCardContent(state.antigravityResult, lastGood: state.lastGoodAntigravity) { $0.gemini })
+                    UsageCardView(title: "Claude+GPT 週次", content: antigravityCardContent(state.antigravityResult, lastGood: state.lastGoodAntigravity) { $0.claudeGpt })
+                }
+            }
+
             Divider()
 
             Text("メニューバー表示").font(.caption).foregroundStyle(.secondary)
@@ -189,6 +218,8 @@ struct PopoverContentView: View {
                 Toggle(MenuBarGaugeSelection.claudeScoped.label(scopedName: scopedName(state.claudeResult, lastGood: state.lastGoodClaude)), isOn: $showClaudeScoped)
                 Toggle(MenuBarGaugeSelection.codexWeekly.label, isOn: $showCodexWeekly)
                 Toggle(MenuBarGaugeSelection.codexAdditional.label, isOn: $showCodexAdditional)
+                Toggle(MenuBarGaugeSelection.antigravityGemini.label, isOn: $showAntigravityGemini)
+                Toggle(MenuBarGaugeSelection.antigravityClaudeGpt.label, isOn: $showAntigravityClaudeGpt)
             }
 
             Divider()
