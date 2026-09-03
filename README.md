@@ -3,6 +3,7 @@
 Claude Code / Codex CLI の利用枠 (usage) をメニューバーの円グラフで見る、Mac ローカル完結の
 常駐アプリ。
 
+![メニューバー](docs/menubar.png)
 ![ポップオーバー](docs/popover.png)
 
 ## Homebrew での導入
