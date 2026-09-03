@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import MornUsageBar
+@testable import MornAIMeter
 
 final class UsageMappingTests: XCTestCase {
     // MARK: - Claude

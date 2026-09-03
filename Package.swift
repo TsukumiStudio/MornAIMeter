@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "MornUsageBar",
+    name: "MornAIMeter",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "MornUsageBar",
-            path: "Sources/MornUsageBar"
+            name: "MornAIMeter",
+            path: "Sources/MornAIMeter"
         ),
         .testTarget(
-            name: "MornUsageBarTests",
-            dependencies: ["MornUsageBar"],
-            path: "Tests/MornUsageBarTests"
+            name: "MornAIMeterTests",
+            dependencies: ["MornAIMeter"],
+            path: "Tests/MornAIMeterTests"
         ),
     ]
 )

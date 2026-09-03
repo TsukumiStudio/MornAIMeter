@@ -24,14 +24,14 @@ struct HistorySample: Equatable {
     var hasValue: Bool { c5 != nil || c7 != nil || cx != nil || cf != nil || cs != nil }
 }
 
-/// ~/Library/Application Support/MornUsageBar/history.jsonl への読み書き。
+/// ~/Library/Application Support/MornAIMeter/history.jsonl への読み書き。
 /// JSON行の生成と間引きは純粋関数として分離してテストする。
 enum HistoryStore {
     static let maxAgeDays: Double = 15
 
     static var fileURL: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("MornUsageBar").appendingPathComponent("history.jsonl")
+        return base.appendingPathComponent("MornAIMeter").appendingPathComponent("history.jsonl")
     }
 
     /// 1サンプルを ts/c5/c7/cx/cf/cs の JSON 行にする純粋関数。取れなかった値は null。

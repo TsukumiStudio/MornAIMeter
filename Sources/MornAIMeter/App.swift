@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct MornUsageBarApp: App {
+struct MornAIMeterApp: App {
     @StateObject private var state = AppState()
     @AppStorage("menuBarShowClaude5h") private var showClaude5h = true
     @AppStorage("menuBarShowClaudeWeekly") private var showClaudeWeekly = false
