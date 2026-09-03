@@ -72,14 +72,14 @@ final class UsageMappingTests: XCTestCase {
         XCTAssertEqual(scoped.window.windowSeconds, 7 * 86400)
     }
 
-    func testMapClaudeScopedMissingDisplayNameFallsBackToModelBetsu() throws {
+    func testMapClaudeScopedMissingDisplayNameFallsBackToFable() throws {
         let json: [String: Any] = [
             "limits": [
                 ["kind": "weekly_scoped", "percent": 12.0, "resets_at": 1_777_776_000],
             ]
         ]
         let usage = UsageMapping.mapClaude(json)
-        XCTAssertEqual(try XCTUnwrap(usage.scoped).name, "モデル別")
+        XCTAssertEqual(try XCTUnwrap(usage.scoped).name, "Fable")
     }
 
     func testMapClaudeMissingScopedIsNil() {
