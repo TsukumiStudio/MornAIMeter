@@ -60,7 +60,7 @@ enum UsageFormat {
     }
 }
 
-/// メニューバーの label に出す円グラフ画像 (GaugeCircleParams を横並びで描く)。非テンプレート画像。輪郭と扇形は控えめなグレー (secondaryLabelColor) で明暗追従、経過率の線はオレンジ。
+/// メニューバーの label に出す円グラフ画像 (GaugeCircleParams を横並びで描く)。非テンプレート画像。輪郭は白、扇形は明るいグレー (固定色)、経過率の線はオレンジ。
 enum GaugeImage {
     static let diameter: CGFloat = 16
     static let spacing: CGFloat = 4
@@ -86,11 +86,9 @@ enum GaugeImage {
         let center = NSPoint(x: rect.midX, y: rect.midY)
         let radius = rect.width / 2 - lineWidth / 2
 
-        NSColor.secondaryLabelColor.setStroke()
-        NSColor.secondaryLabelColor.setFill()
-
         let outline = NSBezierPath(ovalIn: rect.insetBy(dx: lineWidth / 2, dy: lineWidth / 2))
         outline.lineWidth = lineWidth
+        NSColor.white.setStroke()
         outline.stroke()
 
         if let used = p.usedFraction, used > 0 {
@@ -98,6 +96,7 @@ enum GaugeImage {
             path.move(to: center)
             path.appendArc(withCenter: center, radius: radius, startAngle: angle(for: 0), endAngle: angle(for: used), clockwise: true)
             path.close()
+            NSColor(white: 0.7, alpha: 1).setFill()
             path.fill()
         }
 
