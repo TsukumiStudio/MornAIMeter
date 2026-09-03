@@ -65,8 +65,8 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         case .claudeScoped: return "Claude 週次 (\(scopedName ?? "Fable"))"
         case .codexWeekly: return "Codex 週次枠"
         case .codexAdditional: return "Codex Spark"
-        case .antigravityGemini: return "Antigravity Gemini 週次"
-        case .antigravityClaudeGpt: return "Antigravity Claude+GPT 週次"
+        case .antigravityGemini: return "Antigravity経由 Gemini 週次"
+        case .antigravityClaudeGpt: return "Antigravity経由 Claude/GPT 週次"
         }
     }
 
