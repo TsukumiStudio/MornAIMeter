@@ -212,14 +212,18 @@ struct PopoverContentView: View {
             Divider()
 
             Text("メニューバー表示").font(.caption).foregroundStyle(.secondary)
-            HStack(spacing: 12) {
-                Toggle(MenuBarGaugeSelection.claude5h.label, isOn: $showClaude5h)
-                Toggle(MenuBarGaugeSelection.claudeWeekly.label, isOn: $showClaudeWeekly)
-                Toggle(MenuBarGaugeSelection.claudeScoped.label(scopedName: scopedName(state.claudeResult, lastGood: state.lastGoodClaude)), isOn: $showClaudeScoped)
-                Toggle(MenuBarGaugeSelection.codexWeekly.label, isOn: $showCodexWeekly)
-                Toggle(MenuBarGaugeSelection.codexAdditional.label, isOn: $showCodexAdditional)
-                Toggle(MenuBarGaugeSelection.antigravityGemini.label, isOn: $showAntigravityGemini)
-                Toggle(MenuBarGaugeSelection.antigravityClaudeGpt.label, isOn: $showAntigravityClaudeGpt)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 12) {
+                    Toggle(MenuBarGaugeSelection.claude5h.label, isOn: $showClaude5h)
+                    Toggle(MenuBarGaugeSelection.claudeWeekly.label, isOn: $showClaudeWeekly)
+                    Toggle(MenuBarGaugeSelection.claudeScoped.label(scopedName: scopedName(state.claudeResult, lastGood: state.lastGoodClaude)), isOn: $showClaudeScoped)
+                }
+                HStack(spacing: 12) {
+                    Toggle(MenuBarGaugeSelection.codexWeekly.label, isOn: $showCodexWeekly)
+                    Toggle(MenuBarGaugeSelection.codexAdditional.label, isOn: $showCodexAdditional)
+                    Toggle(MenuBarGaugeSelection.antigravityGemini.label, isOn: $showAntigravityGemini)
+                    Toggle(MenuBarGaugeSelection.antigravityClaudeGpt.label, isOn: $showAntigravityClaudeGpt)
+                }
             }
 
             Divider()
