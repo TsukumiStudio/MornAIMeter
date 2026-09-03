@@ -2,7 +2,7 @@ import SwiftUI
 
 struct UsageCardView: View {
     enum Content {
-        case data(percent: Double, resetText: String, position: WindowPosition?, errorMessage: String? = nil, blockCost: Double? = nil)
+        case data(percent: Double, resetText: String, position: WindowPosition?, errorMessage: String? = nil)
         case noData
         case message(String)
     }
@@ -13,7 +13,7 @@ struct UsageCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             switch content {
-            case .data(let percent, let resetText, let position, let errorMessage, let blockCost):
+            case .data(let percent, let resetText, let position, let errorMessage):
                 let remaining = max(0, 100 - percent)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(title).font(.caption.bold())
@@ -36,19 +36,6 @@ struct UsageCardView: View {
                         .foregroundStyle(.secondary)
                 }
                 ProgressView(value: min(max(percent, 0), 100), total: 100)
-                    // 5時間枠フル1回ぶんの区切り線 (バー背景色と同じ色でバーの塗りを分断する)。経過率の線より背面。
-                    .overlay(alignment: .leading) {
-                        if let blockCost {
-                            GeometryReader { geo in
-                                ForEach(BlockCost.ticks(used: percent, cost: blockCost), id: \.self) { x in
-                                    Rectangle()
-                                        .fill(Color.gray.opacity(0.12))
-                                        .frame(width: 2)
-                                        .offset(x: max(0, geo.size.width * x / 100 - 1))
-                                }
-                            }
-                        }
-                    }
                     // 枠の経過率の位置を示す縦の目盛り線 (resets_at が無ければ position は nil)
                     .overlay(alignment: .leading) {
                         if let position {
@@ -70,11 +57,6 @@ struct UsageCardView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
-                }
-                if let blockCost {
-                    Text(BlockCost.hint(used: percent, cost: blockCost))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                 }
                 if let errorMessage {
                     Text(errorMessage)
@@ -99,13 +81,12 @@ struct UsageCardView: View {
     }
 }
 
-private func cardContent(percent: Double, resetsAt: Date?, windowSeconds: Double, errorMessage: String? = nil, blockCost: Double? = nil) -> UsageCardView.Content {
+private func cardContent(percent: Double, resetsAt: Date?, windowSeconds: Double, errorMessage: String? = nil) -> UsageCardView.Content {
     .data(
         percent: percent,
         resetText: UsageFormat.resetText(resetsAt: resetsAt, windowSeconds: windowSeconds),
         position: UsageFormat.windowPosition(resetsAt: resetsAt, windowSeconds: windowSeconds, usedPercent: percent),
-        errorMessage: errorMessage,
-        blockCost: blockCost
+        errorMessage: errorMessage
     )
 }
 
@@ -114,12 +95,11 @@ private func cardContent(percent: Double, resetsAt: Date?, windowSeconds: Double
 private func claudeCardContent(
     _ result: Result<ClaudeUsage, ServiceUsageError>?,
     lastGood: ClaudeUsage?,
-    blockCost: Double? = nil,
     _ window: (ClaudeUsage) -> WindowUsage?
 ) -> UsageCardView.Content {
     if let good = lastGood, let w = window(good) {
         let errorMessage: String? = { if case .failure(let error)? = result { return error.errorDescription ?? "取得失敗" }; return nil }()
-        return cardContent(percent: w.percent, resetsAt: w.resetsAt, windowSeconds: w.windowSeconds, errorMessage: errorMessage, blockCost: blockCost)
+        return cardContent(percent: w.percent, resetsAt: w.resetsAt, windowSeconds: w.windowSeconds, errorMessage: errorMessage)
     }
     guard let result else { return .noData }
     switch result {
@@ -127,7 +107,7 @@ private func claudeCardContent(
         return .message(error.errorDescription ?? "取得失敗")
     case .success(let usage):
         guard let w = window(usage) else { return .noData }
-        return cardContent(percent: w.percent, resetsAt: w.resetsAt, windowSeconds: w.windowSeconds, blockCost: blockCost)
+        return cardContent(percent: w.percent, resetsAt: w.resetsAt, windowSeconds: w.windowSeconds)
     }
 }
 
@@ -180,10 +160,10 @@ struct PopoverContentView: View {
                 Text("Claude").font(.caption).foregroundStyle(.secondary).frame(width: Self.rowHeadingWidth, alignment: .leading)
                 HStack(spacing: 8) {
                     UsageCardView(title: "5時間枠", content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude) { $0.fiveHour })
-                    UsageCardView(title: "週次枠", content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude, blockCost: state.weeklyBlockCost) { $0.sevenDay })
+                    UsageCardView(title: "週次枠", content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude) { $0.sevenDay })
                     UsageCardView(
                         title: "週次 (\(scopedName(state.claudeResult, lastGood: state.lastGoodClaude) ?? "Fable"))",
-                        content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude, blockCost: state.scopedBlockCost) { $0.scoped?.window }
+                        content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude) { $0.scoped?.window }
                     )
                 }
             }

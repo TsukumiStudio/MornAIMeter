@@ -7,10 +7,6 @@ final class AppState: ObservableObject {
     @Published private(set) var lastGoodClaude: ClaudeUsage?
     @Published private(set) var lastGoodCodex: CodexUsage?
     @Published private(set) var isRefreshing = false
-    /// 5時間枠フル1回 (0%→100%) を使い切ると週次枠が何 %pt 減るかの推定 (BlockCost.estimate)。履歴不足なら nil。
-    @Published private(set) var weeklyBlockCost: Double?
-    /// scoped (週次モデル別枠) 版の同上。
-    @Published private(set) var scopedBlockCost: Double?
 
     private var timer: Timer?
     private let refreshInterval: TimeInterval = 5 * 60
@@ -22,7 +18,6 @@ final class AppState: ObservableObject {
     private var retryNotBeforeCodex: Date?
 
     init() {
-        HistoryStore.pruneFileAtStartup()
         refresh(force: true)
         timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
@@ -83,21 +78,6 @@ final class AppState: ObservableObject {
                 }
             }
             isRefreshing = false
-            recordHistory(claude: claude, codex: codex)
         }
-    }
-
-    private func recordHistory(claude: Result<ClaudeUsage, ServiceUsageError>?, codex: Result<CodexUsage, ServiceUsageError>?) {
-        let c5 = { if case .success(let u)? = claude { return u.fiveHour?.percent }; return nil }()
-        let c7 = { if case .success(let u)? = claude { return u.sevenDay?.percent }; return nil }()
-        let cx = { if case .success(let u)? = codex { return u.weekly?.percent }; return nil }()
-        let cf = { if case .success(let u)? = claude { return u.scoped?.window.percent }; return nil }()
-        // cs は additional (Codex Spark) の使用率。secondary_window (週次) を優先し、無ければ primary_window にフォールバックする。
-        let cs = { if case .success(let u)? = codex { return u.additional?.window.percent }; return nil }()
-        let sample = HistorySample(ts: Int64(Date().timeIntervalSince1970 * 1000), c5: c5, c7: c7, cx: cx, cf: cf, cs: cs)
-        HistoryStore.appendSample(sample)
-        let recent = HistoryStore.readRecentSamples()
-        weeklyBlockCost = BlockCost.estimate(samples: recent, weeklyKey: { $0.c7 })
-        scopedBlockCost = BlockCost.estimate(samples: recent, weeklyKey: { $0.cf })
     }
 }
