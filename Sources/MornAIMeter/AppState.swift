@@ -4,8 +4,10 @@ import Foundation
 final class AppState: ObservableObject {
     @Published private(set) var claudeResult: Result<ClaudeUsage, ServiceUsageError>?
     @Published private(set) var codexResult: Result<CodexUsage, ServiceUsageError>?
+    @Published private(set) var antigravityResult: Result<AntigravityUsage, ServiceUsageError>?
     @Published private(set) var lastGoodClaude: ClaudeUsage?
     @Published private(set) var lastGoodCodex: CodexUsage?
+    @Published private(set) var lastGoodAntigravity: AntigravityUsage?
     @Published private(set) var isRefreshing = false
 
     private var timer: Timer?
@@ -14,8 +16,10 @@ final class AppState: ObservableObject {
 
     private var lastFetchedAtClaude: Date?
     private var lastFetchedAtCodex: Date?
+    private var lastFetchedAtAntigravity: Date?
     private var retryNotBeforeClaude: Date?
     private var retryNotBeforeCodex: Date?
+    private var retryNotBeforeAntigravity: Date?
 
     init() {
         refresh(force: true)
@@ -38,7 +42,8 @@ final class AppState: ObservableObject {
         let now = Date()
         let fetchClaude = Self.shouldFetch(now: now, lastFetchedAt: lastFetchedAtClaude, retryNotBefore: retryNotBeforeClaude, minInterval: minFetchInterval, force: force)
         let fetchCodex = Self.shouldFetch(now: now, lastFetchedAt: lastFetchedAtCodex, retryNotBefore: retryNotBeforeCodex, minInterval: minFetchInterval, force: force)
-        guard fetchClaude || fetchCodex else { return }
+        let fetchAntigravity = Self.shouldFetch(now: now, lastFetchedAt: lastFetchedAtAntigravity, retryNotBefore: retryNotBeforeAntigravity, minInterval: minFetchInterval, force: force)
+        guard fetchClaude || fetchCodex || fetchAntigravity else { return }
         isRefreshing = true
         Task {
             async let claudeTask: Result<ClaudeUsage, ServiceUsageError>? = {
@@ -49,8 +54,13 @@ final class AppState: ObservableObject {
                 guard fetchCodex else { return nil }
                 return await UsageFetcher.fetchCodex()
             }()
+            async let antigravityTask: Result<AntigravityUsage, ServiceUsageError>? = {
+                guard fetchAntigravity else { return nil }
+                return await UsageFetcher.fetchAntigravity()
+            }()
             let claude = await claudeTask
             let codex = await codexTask
+            let antigravity = await antigravityTask
             if let claude {
                 claudeResult = claude
                 lastFetchedAtClaude = Date()
@@ -73,6 +83,19 @@ final class AppState: ObservableObject {
                     retryNotBeforeCodex = nil
                 case .failure(.network(_, let retryNotBefore)):
                     if let retryNotBefore { retryNotBeforeCodex = retryNotBefore }
+                case .failure(.needsLogin):
+                    break
+                }
+            }
+            if let antigravity {
+                antigravityResult = antigravity
+                lastFetchedAtAntigravity = Date()
+                switch antigravity {
+                case .success(let usage):
+                    lastGoodAntigravity = usage
+                    retryNotBeforeAntigravity = nil
+                case .failure(.network(_, let retryNotBefore)):
+                    if let retryNotBefore { retryNotBeforeAntigravity = retryNotBefore }
                 case .failure(.needsLogin):
                     break
                 }

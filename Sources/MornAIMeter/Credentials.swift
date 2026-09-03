@@ -13,6 +13,7 @@ enum CredentialError: Error, LocalizedError {
     case keychainNotFound
     case fileNotFound
     case invalidJSON
+    case expired
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +23,8 @@ enum CredentialError: Error, LocalizedError {
             return "~/.codex/auth.json が見つかりません (codex login)"
         case .invalidJSON:
             return "資格情報の JSON 解析に失敗しました"
+        case .expired:
+            return "Antigravity のトークンが期限切れ。agy を起動すると更新されます"
         }
     }
 }
@@ -87,5 +90,34 @@ enum Credentials {
             throw CredentialError.invalidJSON
         }
         return (accessToken, accountId)
+    }
+
+    /// ISO8601 文字列をパースする純粋関数 (単体テスト対象)。小数秒ありを先に試し、無ければ整数秒側にフォールバックする。
+    static func parseExpiry(_ value: String) -> Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = withFraction.date(from: value) { return d }
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        return plain.date(from: value)
+    }
+
+    /// ~/.gemini/jetski-standalone-oauth-token を読む。refresh は行わない (client_secret を保持しないため)。
+    static func antigravityAccessToken(now: Date = Date()) throws -> String {
+        let path = (NSHomeDirectory() as NSString).appendingPathComponent(".gemini/jetski-standalone-oauth-token")
+        guard let data = FileManager.default.contents(atPath: path) else {
+            throw CredentialError.fileNotFound
+        }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let token = json["token"] as? [String: Any],
+              let accessToken = token["access_token"] as? String,
+              let expiryString = token["expiry"] as? String,
+              let expiry = parseExpiry(expiryString) else {
+            throw CredentialError.invalidJSON
+        }
+        guard expiry > now else {
+            throw CredentialError.expired
+        }
+        return accessToken
     }
 }
