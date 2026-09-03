@@ -15,7 +15,7 @@ struct NamedWindow: Equatable {
 struct ClaudeUsage: Equatable {
     var fiveHour: WindowUsage?
     var sevenDay: WindowUsage?
-    /// scoped (weekly_scoped) 配列の先頭要素。モデル別週次枠。
+    /// scoped (weekly_scoped) 配列の先頭要素。モデルごとの週次枠 (例: Fable)。
     var scoped: NamedWindow?
 }
 
@@ -47,10 +47,15 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     var label: String {
+        label(scopedName: nil)
+    }
+
+    /// claudeScoped の表示名。scopedName が渡されればそれを使い、無ければ "Fable" にフォールバックする。
+    func label(scopedName: String?) -> String {
         switch self {
         case .claude5h: return "Claude 5時間枠"
         case .claudeWeekly: return "Claude 週次枠"
-        case .claudeScoped: return "Claude 週次 (モデル別)"
+        case .claudeScoped: return "Claude 週次 (\(scopedName ?? "Fable"))"
         case .codexWeekly: return "Codex 週次枠"
         case .codexAdditional: return "Codex Spark"
         }
@@ -155,7 +160,7 @@ enum UsageMapping {
            let percent = (limit["percent"] as? NSNumber)?.doubleValue {
             let displayName = ((limit["scope"] as? [String: Any])?["model"] as? [String: Any])?["display_name"] as? String
             usage.scoped = NamedWindow(
-                name: displayName ?? "モデル別",
+                name: displayName ?? "Fable",
                 window: WindowUsage(percent: percent, resetsAt: parseDate(limit["resets_at"]), windowSeconds: 7 * 86400)
             )
         }

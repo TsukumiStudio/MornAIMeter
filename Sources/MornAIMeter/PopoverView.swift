@@ -162,7 +162,7 @@ struct PopoverContentView: View {
                     UsageCardView(title: "5時間枠", content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude) { $0.fiveHour })
                     UsageCardView(title: "週次枠", content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude) { $0.sevenDay })
                     UsageCardView(
-                        title: "週次 (\(scopedName(state.claudeResult, lastGood: state.lastGoodClaude) ?? "モデル別"))",
+                        title: "週次 (\(scopedName(state.claudeResult, lastGood: state.lastGoodClaude) ?? "Fable"))",
                         content: claudeCardContent(state.claudeResult, lastGood: state.lastGoodClaude) { $0.scoped?.window }
                     )
                 }
@@ -185,7 +185,7 @@ struct PopoverContentView: View {
             HStack(spacing: 12) {
                 Toggle(MenuBarGaugeSelection.claude5h.label, isOn: $showClaude5h)
                 Toggle(MenuBarGaugeSelection.claudeWeekly.label, isOn: $showClaudeWeekly)
-                Toggle(MenuBarGaugeSelection.claudeScoped.label, isOn: $showClaudeScoped)
+                Toggle(MenuBarGaugeSelection.claudeScoped.label(scopedName: scopedName(state.claudeResult, lastGood: state.lastGoodClaude)), isOn: $showClaudeScoped)
                 Toggle(MenuBarGaugeSelection.codexWeekly.label, isOn: $showCodexWeekly)
                 Toggle(MenuBarGaugeSelection.codexAdditional.label, isOn: $showCodexAdditional)
             }

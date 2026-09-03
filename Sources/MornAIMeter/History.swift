@@ -7,7 +7,7 @@ struct HistorySample: Equatable {
     let c5: Double?
     let c7: Double?
     let cx: Double?
-    /// Claude 週次 (モデル別) 枠の使用率
+    /// Claude 週次 (モデル別スコープ、例 Fable) 枠の使用率
     let cf: Double?
     /// Codex Spark (additional) の使用率
     let cs: Double?
