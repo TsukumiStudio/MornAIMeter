@@ -18,10 +18,9 @@ brew install --cask matsufriends/tap/mornaimeter
 
 - Claude Code (`claude login`) と Codex CLI (`codex login`) にログイン済みであること。
 - このアプリは各 CLI がログイン時に保存したトークンを読み、Anthropic / OpenAI の公式
-  usage API に残り枠を問い合わせるだけ。トークンの書き換え・保存・外部送信は行わず、
-  通信先はこの 2 社の API のみで、独自サーバーは存在しない。
-- 初回起動時に macOS がアクセス許可ダイアログを 1 回表示する。「常に許可」を選ぶと
-  以後は表示されない。
+  usage API に残り枠を問い合わせています。
+- 初回起動時に macOS がアクセス許可ダイアログを 1 回表示します。「常に許可」を選ぶと
+  以後は表示されません。
 
 ## 開発
 
