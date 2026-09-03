@@ -147,6 +147,13 @@ struct PopoverContentView: View {
 
     private static let rowHeadingWidth: CGFloat = 74
 
+    private var appVersionText: String {
+        if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+            return "v\(version)"
+        }
+        return "dev"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 8) {
@@ -185,8 +192,14 @@ struct PopoverContentView: View {
 
             Divider()
 
-            Button("終了") {
-                NSApp.terminate(nil)
+            HStack {
+                Button("終了") {
+                    NSApp.terminate(nil)
+                }
+                Spacer()
+                Text(appVersionText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(12)
