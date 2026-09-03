@@ -152,13 +152,17 @@ final class UsageMappingTests: XCTestCase {
     }
 
     func testRemainDayBoundary() {
-        // 25時間ちょうど -> 1日1時間0分 (分は0でも表示する)
-        XCTAssertEqual(UsageFormat.remain(25 * 3600), "あと1日1時間0分")
+        // 1日以上は分を省いて日・時間のみ
+        XCTAssertEqual(UsageFormat.remain(4 * 86400 + 11 * 3600 + 39 * 60), "あと4日11時間")
     }
 
     func testRemainExactDayNoHours() {
-        // 24時間ちょうど -> 1日0分 (時間は0なので省略、分は0でも表示)
-        XCTAssertEqual(UsageFormat.remain(24 * 3600), "あと1日0分")
+        // 24時間ちょうど -> hoursが0なので日のみ
+        XCTAssertEqual(UsageFormat.remain(24 * 3600), "あと1日")
+    }
+
+    func testRemainHoursAndMinutesUnderOneDay() {
+        XCTAssertEqual(UsageFormat.remain(4 * 3600 + 9 * 60), "あと4時間9分")
     }
 
     // MARK: - Formatting: resetText

@@ -9,14 +9,18 @@ struct WindowPosition: Equatable {
 
 /// worker/src/index.js の fmtRemain / fmtReset と同じ趣旨の残り時間整形 (純粋関数、単体テスト対象)。
 enum UsageFormat {
-    /// 「あと1日2時間3分」のように、日→時間→分の順で0でない桁だけ足していく。分は常に表示する。
+    /// 1日以上は上位2桁(日・時間)まで、1日未満は現状どおり時間・分を表示する。カード幅に収めるため分は1日以上で省く。
     static func remain(_ diff: TimeInterval) -> String {
         let totalMinutes = max(0, Int(floor(diff / 60)))
         let days = totalMinutes / 1440
         let hours = (totalMinutes % 1440) / 60
         let minutes = totalMinutes % 60
         var s = "あと"
-        if days > 0 { s += "\(days)日" }
+        if days > 0 {
+            s += "\(days)日"
+            if hours > 0 { s += "\(hours)時間" }
+            return s
+        }
         if hours > 0 { s += "\(hours)時間" }
         s += "\(minutes)分"
         return s
