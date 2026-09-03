@@ -1,7 +1,7 @@
 # MornAIMeter
 
 Claude Code / Codex CLI の利用枠 (usage) をメニューバーの円グラフで見る、Mac ローカル完結の
-常駐アプリ。
+常駐アプリです。
 
 ![メニューバー](docs/menubar.png)
 ![ポップオーバー](docs/popover.png)
@@ -29,5 +29,3 @@ bash build-app.sh          # build/MornAIMeter.app を生成
 swift build -c release
 swift test
 ```
-
-Xcode プロジェクト (.xcodeproj) は作らず、`swift build` のみで完結する。
