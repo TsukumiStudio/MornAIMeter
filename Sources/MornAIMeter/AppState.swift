@@ -7,6 +7,10 @@ final class AppState: ObservableObject {
     @Published private(set) var lastGoodClaude: ClaudeUsage?
     @Published private(set) var lastGoodCodex: CodexUsage?
     @Published private(set) var isRefreshing = false
+    /// 5時間枠フル1回 (0%→100%) を使い切ると週次枠が何 %pt 減るかの推定 (BlockCost.estimate)。履歴不足なら nil。
+    @Published private(set) var weeklyBlockCost: Double?
+    /// scoped (週次モデル別枠) 版の同上。
+    @Published private(set) var scopedBlockCost: Double?
 
     private var timer: Timer?
     private let refreshInterval: TimeInterval = 5 * 60
@@ -92,5 +96,8 @@ final class AppState: ObservableObject {
         let cs = { if case .success(let u)? = codex { return u.additional?.window.percent }; return nil }()
         let sample = HistorySample(ts: Int64(Date().timeIntervalSince1970 * 1000), c5: c5, c7: c7, cx: cx, cf: cf, cs: cs)
         HistoryStore.appendSample(sample)
+        let recent = HistoryStore.readRecentSamples()
+        weeklyBlockCost = BlockCost.estimate(samples: recent, weeklyKey: { $0.c7 })
+        scopedBlockCost = BlockCost.estimate(samples: recent, weeklyKey: { $0.cf })
     }
 }

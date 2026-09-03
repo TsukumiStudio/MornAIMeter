@@ -424,6 +424,56 @@ final class UsageMappingTests: XCTestCase {
         XCTAssertEqual(pruned, [fresh])
     }
 
+    // MARK: - BlockCost.estimate
+
+    func testBlockCostEstimateComputesRatioForMonotonicSeries() throws {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let base = Int64(now.timeIntervalSince1970 * 1000) - 20 * 60 * 1000
+        let samples = [
+            HistorySample(ts: base, c5: 0, c7: 0, cx: nil),
+            HistorySample(ts: base + 10 * 60 * 1000, c5: 50, c7: 10, cx: nil),
+            HistorySample(ts: base + 20 * 60 * 1000, c5: 100, c7: 20, cx: nil),
+        ]
+        let cost = try XCTUnwrap(BlockCost.estimate(samples: samples, weeklyKey: { $0.c7 }, now: now))
+        XCTAssertEqual(cost, 20, accuracy: 0.01)
+    }
+
+    func testBlockCostEstimateExcludesDecreasingSegment() throws {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let base = Int64(now.timeIntervalSince1970 * 1000) - 30 * 60 * 1000
+        let samples = [
+            HistorySample(ts: base, c5: 0, c7: 0, cx: nil),
+            HistorySample(ts: base + 10 * 60 * 1000, c5: 100, c7: 20, cx: nil),
+            // リセットまたぎ (c5 が減少) のペアは除外される
+            HistorySample(ts: base + 20 * 60 * 1000, c5: 10, c7: 25, cx: nil),
+            HistorySample(ts: base + 30 * 60 * 1000, c5: 110, c7: 45, cx: nil),
+        ]
+        let cost = try XCTUnwrap(BlockCost.estimate(samples: samples, weeklyKey: { $0.c7 }, now: now))
+        // 採用ペア: 0->100 (d5=100,dw=20)、10->110 (d5=100,dw=20)。100->10 のペアのみ除外。usedFive=200, usedWeekly=40
+        XCTAssertEqual(cost, 20, accuracy: 0.01)
+    }
+
+    func testBlockCostEstimateExcludesGapOver45Minutes() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let base = Int64(now.timeIntervalSince1970 * 1000) - 46 * 60 * 1000
+        let samples = [
+            HistorySample(ts: base, c5: 0, c7: 0, cx: nil),
+            // 46分ギャップ -> このペアは除外され、usedFive が 100 未満のまま
+            HistorySample(ts: base + 46 * 60 * 1000, c5: 100, c7: 20, cx: nil),
+        ]
+        XCTAssertNil(BlockCost.estimate(samples: samples, weeklyKey: { $0.c7 }, now: now))
+    }
+
+    func testBlockCostEstimateNilWhenUsedFiveBelow100() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let base = Int64(now.timeIntervalSince1970 * 1000) - 10 * 60 * 1000
+        let samples = [
+            HistorySample(ts: base, c5: 0, c7: 0, cx: nil),
+            HistorySample(ts: base + 10 * 60 * 1000, c5: 50, c7: 10, cx: nil),
+        ]
+        XCTAssertNil(BlockCost.estimate(samples: samples, weeklyKey: { $0.c7 }, now: now))
+    }
+
     // MARK: - Formatting: windowPosition
 
     func testWindowPositionFutureResetsAt() {
