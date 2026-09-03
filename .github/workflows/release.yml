@@ -12,7 +12,7 @@ jobs:
   release:
     runs-on: macos-latest
     env:
-      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+      MORN_RELEASE_TOKEN: ${{ secrets.MORN_RELEASE_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -21,11 +21,11 @@ jobs:
 
       - name: Sign & notarize via MornNotary
         env:
-          GH_TOKEN: ${{ secrets.MORN_NOTARY_TOKEN }}
+          GH_TOKEN: ${{ secrets.MORN_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::MORN_NOTARY_TOKEN secret is not set. Register a fine-grained PAT for matsufriends/MornNotary (Contents: read/write, Actions: read) as MORN_NOTARY_TOKEN."
+            echo "::error::MORN_RELEASE_TOKEN secret is not set. Register a fine-grained PAT covering matsufriends/MornNotary and matsufriends/homebrew-tap (Contents: read/write, Actions: read) as MORN_RELEASE_TOKEN."
             exit 1
           fi
           VERSION="${GITHUB_REF_NAME#v}"
@@ -89,11 +89,11 @@ jobs:
           fi
 
       - name: Update Homebrew tap
-        if: ${{ env.TAP_TOKEN != '' }}
+        if: ${{ env.MORN_RELEASE_TOKEN != '' }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           SHA="$(shasum -a 256 build/MornAIMeter.app.zip | awk '{print $1}')"
-          git clone "https://x-access-token:${TAP_TOKEN}@github.com/matsufriends/homebrew-tap.git" tap
+          git clone "https://x-access-token:${MORN_RELEASE_TOKEN}@github.com/matsufriends/homebrew-tap.git" tap
           cd tap
           sed -i "" -E "s/^  version \".*\"/  version \"${VERSION}\"/; s/^  sha256 \".*\"/  sha256 \"${SHA}\"/" Casks/mornaimeter.rb
           git config user.name "github-actions[bot]"
