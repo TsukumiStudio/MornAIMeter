@@ -20,6 +20,6 @@ cp Info.plist "$APP_DIR/Contents/Info.plist"
 mkdir -p "$APP_DIR/Contents/Resources"
 cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
 
-codesign --force --deep --sign - "$APP_DIR"
+codesign --force --deep --sign "${SIGN_IDENTITY:--}" "$APP_DIR"
 
 echo "Built: $APP_DIR"
