@@ -144,6 +144,7 @@ struct PopoverContentView: View {
     @AppStorage("menuBarShowClaudeScoped") private var showClaudeScoped = false
     @AppStorage("menuBarShowCodexWeekly") private var showCodexWeekly = false
     @AppStorage("menuBarShowCodexAdditional") private var showCodexAdditional = false
+    @StateObject private var loginItem = LoginItemState()
 
     private static let rowHeadingWidth: CGFloat = 74
 
@@ -192,9 +193,30 @@ struct PopoverContentView: View {
 
             Divider()
 
-            HStack {
+            HStack(spacing: 8) {
                 Button("終了") {
                     NSApp.terminate(nil)
+                }
+                Button("GitHub で開く") {
+                    if let url = URL(string: AppLinks.repository) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Toggle("ログイン時に起動", isOn: Binding(
+                        get: { loginItem.isEnabled },
+                        set: { loginItem.setEnabled($0) }
+                    ))
+                    if let errorMessage = loginItem.errorMessage {
+                        Text(errorMessage)
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                    }
+                    if loginItem.requiresApproval {
+                        Text("システム設定 の ログイン項目 で許可が必要")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 Text(appVersionText)
@@ -204,6 +226,9 @@ struct PopoverContentView: View {
         }
         .padding(12)
         .frame(width: 720)
-        .onAppear { state.refresh() }
+        .onAppear {
+            state.refresh()
+            loginItem.refresh()
+        }
     }
 }
