@@ -75,6 +75,24 @@ open MornAIMeter.app
 - Finder で `MornAIMeter.app` を右クリック→「開く」→ダイアログで「開く」を選択
 - または `xattr -d com.apple.quarantine MornAIMeter.app` で quarantine 属性を外してから起動
 
+## Homebrew での導入
+
+```bash
+brew install --cask matsufriends/tap/mornaimeter
+```
+
+ad-hoc 署名のため Gatekeeper にブロックされる場合は `--no-quarantine` を付けて入れる。
+
+```bash
+brew install --cask --no-quarantine matsufriends/tap/mornaimeter
+```
+
+更新は `brew upgrade --cask mornaimeter`。
+
+cask は zip の sha256 を固定して参照するため、brew 対応後は既存タグの打ち直し (zip 差し替え) では
+なく新しいタグを切って公開する運用にする (既存タグの zip を差し替えると sha256 不一致で
+`brew install`/`upgrade` が失敗する)。
+
 ## 資格情報の読み取り元
 
 - **Claude**: Keychain の generic password (service `Claude Code-credentials`) に入っている
