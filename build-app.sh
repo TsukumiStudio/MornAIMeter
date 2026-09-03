@@ -17,6 +17,9 @@ cp "$(swift build -c release --show-bin-path)/$APP_NAME" "$APP_DIR/Contents/MacO
 cp Info.plist "$APP_DIR/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$APP_DIR/Contents/Info.plist"
 
+mkdir -p "$APP_DIR/Contents/Resources"
+cp Resources/AppIcon.icns "$APP_DIR/Contents/Resources/AppIcon.icns"
+
 codesign --force --deep --sign - "$APP_DIR"
 
 echo "Built: $APP_DIR"
