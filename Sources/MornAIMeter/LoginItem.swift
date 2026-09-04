@@ -1,7 +1,7 @@
 import ServiceManagement
 
 enum AppLinks {
-    static let repository = "https://github.com/matsufriends/MornAIMeter"
+    static let repository = "https://github.com/TsukumiStudio/MornAIMeter"
 }
 
 /// SMAppService.mainApp の状態を保持し、UI から直接 SMAppService を触らせないための薄いラッパー。

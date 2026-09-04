@@ -61,7 +61,7 @@ final class Updater: ObservableObject {
         state = .checking
         Task { @MainActor in
             do {
-                var request = URLRequest(url: URL(string: "https://api.github.com/repos/matsufriends/MornAIMeter/releases/latest")!)
+                var request = URLRequest(url: URL(string: "https://api.github.com/repos/TsukumiStudio/MornAIMeter/releases/latest")!)
                 request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
                 request.setValue("MornAIMeter", forHTTPHeaderField: "User-Agent")
                 let (data, response) = try await URLSession.shared.data(for: request)

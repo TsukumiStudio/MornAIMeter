@@ -9,7 +9,7 @@ Claude Code / Codex CLI / Antigravity の利用枠 (usage) をメニューバー
 ## Homebrew での導入
 
 ```bash
-brew install --cask matsufriends/tap/mornaimeter
+brew install --cask tsukumistudio/tap/mornaimeter
 ```
 
 ## Homebrew での更新
