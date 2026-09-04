@@ -186,9 +186,7 @@ struct PopoverContentView: View {
         case .checking:
             ProgressView().controlSize(.small)
         case .upToDate:
-            Text("最新です")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Button("最新です") { updater.check() }
         case .available(let tag, let url):
             HStack(spacing: 6) {
                 Text("\(tag) が利用可能")
