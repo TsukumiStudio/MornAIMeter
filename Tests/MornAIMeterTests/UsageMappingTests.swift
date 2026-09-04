@@ -531,16 +531,20 @@ final class UsageMappingTests: XCTestCase {
     // MARK: - Formatting: paceLabel
 
     func testPaceLabelWithinOnePointIsEvenPace() {
-        XCTAssertEqual(UsageFormat.paceLabel(0.5), "ちょうど")
-        XCTAssertEqual(UsageFormat.paceLabel(-0.9), "ちょうど")
+        XCTAssertEqual(UsageFormat.paceLabel(0.5, windowSeconds: 604800), "ちょうど")
+        XCTAssertEqual(UsageFormat.paceLabel(-0.9, windowSeconds: 18000), "ちょうど")
     }
 
-    func testPaceLabelPositiveDifferenceIsLeading() {
-        XCTAssertEqual(UsageFormat.paceLabel(12.4), "使いすぎ +12pt")
+    func testPaceLabelPositiveDifferenceIsLeadingInWeeklyWindow() {
+        XCTAssertEqual(UsageFormat.paceLabel(12, windowSeconds: 604800), "使いすぎ 20時間9分")
     }
 
-    func testPaceLabelNegativeDifferenceIsSlack() {
-        XCTAssertEqual(UsageFormat.paceLabel(-8.0), "余裕 8pt")
+    func testPaceLabelNegativeDifferenceIsSlackInFiveHourWindow() {
+        XCTAssertEqual(UsageFormat.paceLabel(-8, windowSeconds: 18000), "余裕 24分")
+    }
+
+    func testPaceLabelFallsBackToPointsWhenWindowSecondsIsZero() {
+        XCTAssertEqual(UsageFormat.paceLabel(12.4, windowSeconds: 0), "使いすぎ +12pt")
     }
 
     // MARK: - AppState.shouldFetch

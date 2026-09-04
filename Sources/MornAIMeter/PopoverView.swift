@@ -2,7 +2,7 @@ import SwiftUI
 
 struct UsageCardView: View {
     enum Content {
-        case data(percent: Double, resetText: String, position: WindowPosition?, errorMessage: String? = nil)
+        case data(percent: Double, resetText: String, position: WindowPosition?, windowSeconds: Double, errorMessage: String? = nil)
         case noData
         case message(String)
     }
@@ -13,13 +13,13 @@ struct UsageCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             switch content {
-            case .data(let percent, let resetText, let position, let errorMessage):
+            case .data(let percent, let resetText, let position, let windowSeconds, let errorMessage):
                 let remaining = max(0, 100 - percent)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(title).font(.caption.bold())
                     Spacer(minLength: 4)
                     if let position {
-                        Text(UsageFormat.paceLabel(position.difference))
+                        Text(UsageFormat.paceLabel(position.difference, windowSeconds: windowSeconds))
                             .font(.caption2)
                             .foregroundStyle(position.difference > 1 ? .red : .secondary)
                     }
@@ -86,6 +86,7 @@ private func cardContent(percent: Double, resetsAt: Date?, windowSeconds: Double
         percent: percent,
         resetText: UsageFormat.resetText(resetsAt: resetsAt, windowSeconds: windowSeconds),
         position: UsageFormat.windowPosition(resetsAt: resetsAt, windowSeconds: windowSeconds, usedPercent: percent),
+        windowSeconds: windowSeconds,
         errorMessage: errorMessage
     )
 }
