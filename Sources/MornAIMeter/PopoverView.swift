@@ -166,6 +166,7 @@ struct PopoverContentView: View {
     @AppStorage("menuBarShowAntigravityGemini") private var showAntigravityGemini = false
     @AppStorage("menuBarShowAntigravityClaudeGpt") private var showAntigravityClaudeGpt = false
     @StateObject private var loginItem = LoginItemState()
+    @StateObject private var updater = Updater()
 
     private static let rowHeadingWidth: CGFloat = 74
 
@@ -174,6 +175,30 @@ struct PopoverContentView: View {
             return "v\(version)"
         }
         return "dev"
+    }
+
+    @ViewBuilder
+    private var updateSection: some View {
+        switch updater.state {
+        case .idle:
+            Button("更新を確認") { updater.check() }
+        case .checking:
+            ProgressView().controlSize(.small)
+        case .upToDate:
+            Text("最新です")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .available(let tag, let url):
+            HStack(spacing: 6) {
+                Text("\(tag) が利用可能")
+                    .font(.caption)
+                Button(updater.updateButtonTitle) { updater.performUpdate(releaseURL: url) }
+            }
+        case .failed:
+            Text("確認できませんでした")
+                .font(.caption)
+                .foregroundStyle(.red)
+        }
     }
 
     var body: some View {
@@ -254,6 +279,7 @@ struct PopoverContentView: View {
                     }
                 }
                 Spacer()
+                updateSection
                 Text(appVersionText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
