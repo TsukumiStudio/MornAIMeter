@@ -9,21 +9,25 @@ struct WindowPosition: Equatable {
 
 /// worker/src/index.js の fmtRemain / fmtReset と同じ趣旨の残り時間整形 (純粋関数、単体テスト対象)。
 enum UsageFormat {
-    /// 1日以上は上位2桁(日・時間)まで、1日未満は現状どおり時間・分を表示する。カード幅に収めるため分は1日以上で省く。
-    static func remain(_ diff: TimeInterval) -> String {
+    /// 1日以上は上位2桁(日・時間)まで、1日未満は現状どおり時間・分を表示する。カード幅に収めるため分は1日以上で省く。「あと」は付けない。
+    static func duration(_ diff: TimeInterval) -> String {
         let totalMinutes = max(0, Int(floor(diff / 60)))
         let days = totalMinutes / 1440
         let hours = (totalMinutes % 1440) / 60
         let minutes = totalMinutes % 60
-        var s = "あと"
         if days > 0 {
-            s += "\(days)日"
+            var s = "\(days)日"
             if hours > 0 { s += "\(hours)時間" }
             return s
         }
+        var s = ""
         if hours > 0 { s += "\(hours)時間" }
         s += "\(minutes)分"
         return s
+    }
+
+    static func remain(_ diff: TimeInterval) -> String {
+        "あと" + duration(diff)
     }
 
     /// リセット時刻が未来なら残り時間、過去なら windowSeconds ぶん進めた次回の目安を返す。
@@ -56,13 +60,19 @@ enum UsageFormat {
         return WindowPosition(elapsed: elapsed, difference: usedPercent - elapsed)
     }
 
-    /// worker/src/index.js の paceLabel (649〜651行) の移植。
-    static func paceLabel(_ difference: Double) -> String {
-        abs(difference) < 1
-            ? "ちょうど"
-            : difference > 0
+    /// worker/src/index.js の paceLabel (649〜651行) の移植。使用率と経過率の差 (pt) を枠の長さで時間換算して表示する。
+    /// windowSeconds が 0 以下なら換算できないため pt 表記にフォールバックする。
+    static func paceLabel(_ difference: Double, windowSeconds: Double) -> String {
+        if abs(difference) < 1 { return "ちょうど" }
+        guard windowSeconds > 0 else {
+            return difference > 0
                 ? "使いすぎ +" + String(format: "%.0f", difference) + "pt"
                 : "余裕 " + String(format: "%.0f", abs(difference)) + "pt"
+        }
+        let seconds = abs(difference) / 100 * windowSeconds
+        return difference > 0
+            ? "使いすぎ " + duration(seconds)
+            : "余裕 " + duration(seconds)
     }
 }
 
