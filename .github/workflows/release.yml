@@ -11,8 +11,6 @@ permissions:
 jobs:
   release:
     runs-on: macos-latest
-    env:
-      MORN_RELEASE_TOKEN: ${{ secrets.MORN_RELEASE_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -21,65 +19,18 @@ jobs:
 
       - name: Sign & notarize via MornNotary
         env:
+          # PAT (classic), repo scope, with access to matsufriends/MornNotary.
           GH_TOKEN: ${{ secrets.MORN_RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::MORN_RELEASE_TOKEN secret is not set. Register a token with access to matsufriends/MornNotary (Contents: read/write, Actions: read) as MORN_RELEASE_TOKEN."
+            echo "::error::MORN_RELEASE_TOKEN is not set. Register a PAT (classic) with repo scope and access to matsufriends/MornNotary."
             exit 1
           fi
-          VERSION="${GITHUB_REF_NAME#v}"
-
-          SUBMIT_ZIP="$(mktemp -d)/MornAIMeter.zip"
-          ditto -c -k --keepParent build/MornAIMeter.app "$SUBMIT_ZIP"
-
-          WORKDIR="$(mktemp -d)"
-          git clone --depth 1 --branch main --single-branch "https://x-access-token:${GH_TOKEN}@github.com/matsufriends/MornNotary.git" "$WORKDIR"
-          cd "$WORKDIR"
-          REQUEST_BRANCH="sign/mornaimeter-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          git switch -c "$REQUEST_BRANCH"
-          cp "$SUBMIT_ZIP" "$WORKDIR/incoming/MornAIMeter.zip"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add incoming/MornAIMeter.zip
-          git commit -m "request: sign MornAIMeter v${VERSION}"
-          git push -u origin "$REQUEST_BRANCH"
-          SHA="$(git rev-parse HEAD)"
-
-          RUN_ID=""
-          for i in $(seq 1 30); do
-            RUN_ID=$(gh run list --repo matsufriends/MornNotary --workflow sign.yml \
-              --branch "$REQUEST_BRANCH" --commit "$SHA" --event push \
-              --json databaseId --jq '.[0].databaseId // empty')
-            [ -n "$RUN_ID" ] && break
-            sleep 5
-          done
-          if [ -z "$RUN_ID" ]; then
-            echo "::error::MornNotary workflow run did not start for commit $SHA"
-            exit 1
-          fi
-          echo "MornNotary run: $RUN_ID"
-          gh run watch "$RUN_ID" --repo matsufriends/MornNotary --exit-status
-
-          OUTDIR="$(mktemp -d)"
-          gh run download "$RUN_ID" --repo matsufriends/MornNotary --name "MornAIMeter-signed" --dir "$OUTDIR"
-          SIGNED_ZIP="$(find "$OUTDIR" -name '*.zip' | head -1)"
-          if [ -z "$SIGNED_ZIP" ]; then
-            echo "::error::Signed artifact not found in MornNotary run output"
-            exit 1
-          fi
-
-          cd "$GITHUB_WORKSPACE"
-          rm -rf build/MornAIMeter.app
-          ditto -x -k "$SIGNED_ZIP" build
-          codesign --verify --deep --strict --verbose=2 build/MornAIMeter.app
-          xcrun stapler validate build/MornAIMeter.app
-          git -C "$WORKDIR" push origin --delete "$REQUEST_BRANCH"
-
-      - name: Zip app
-        run: |
-          cd build
-          ditto -c -k --keepParent MornAIMeter.app MornAIMeter.app.zip
+          gh auth setup-git
+          gh repo clone matsufriends/MornNotary "$RUNNER_TEMP/MornNotary" -- --depth 1
+          bash "$RUNNER_TEMP/MornNotary/sign.sh" build/MornAIMeter.app
+          mv build/MornAIMeter-signed.zip build/MornAIMeter.app.zip
 
       - name: Publish release
         env:
