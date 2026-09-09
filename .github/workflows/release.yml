@@ -34,20 +34,23 @@ jobs:
           ditto -c -k --keepParent build/MornAIMeter.app "$SUBMIT_ZIP"
 
           WORKDIR="$(mktemp -d)"
-          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/matsufriends/MornNotary.git" "$WORKDIR"
-          cp "$SUBMIT_ZIP" "$WORKDIR/incoming/MornAIMeter.zip"
+          git clone --depth 1 --branch main --single-branch "https://x-access-token:${GH_TOKEN}@github.com/matsufriends/MornNotary.git" "$WORKDIR"
           cd "$WORKDIR"
+          REQUEST_BRANCH="sign/mornaimeter-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$REQUEST_BRANCH"
+          cp "$SUBMIT_ZIP" "$WORKDIR/incoming/MornAIMeter.zip"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add incoming/MornAIMeter.zip
           git commit -m "request: sign MornAIMeter v${VERSION}"
-          git push
+          git push -u origin "$REQUEST_BRANCH"
           SHA="$(git rev-parse HEAD)"
 
           RUN_ID=""
           for i in $(seq 1 30); do
             RUN_ID=$(gh run list --repo matsufriends/MornNotary --workflow sign.yml \
-              --json databaseId,headSha --jq ".[] | select(.headSha==\"$SHA\") | .databaseId" | head -1)
+              --branch "$REQUEST_BRANCH" --commit "$SHA" --event push \
+              --json databaseId --jq '.[0].databaseId // empty')
             [ -n "$RUN_ID" ] && break
             sleep 5
           done
@@ -71,6 +74,7 @@ jobs:
           ditto -x -k "$SIGNED_ZIP" build
           codesign --verify --deep --strict --verbose=2 build/MornAIMeter.app
           xcrun stapler validate build/MornAIMeter.app
+          git -C "$WORKDIR" push origin --delete "$REQUEST_BRANCH"
 
       - name: Zip app
         run: |
