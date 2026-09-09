@@ -1,14 +1,13 @@
 #!/bin/bash
-# tools/make-icon.swift で 1024px PNG を描画し、iconutil で Resources/AppIcon.icns を生成する。
+# design/icon.png (design/icon.psd から書き出した 1024px) から iconutil で Resources/AppIcon.icns を生成する。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BUILD_DIR="build"
 ICONSET_DIR="$BUILD_DIR/AppIcon.iconset"
-SOURCE_PNG="$BUILD_DIR/AppIcon-1024.png"
+SOURCE_PNG="design/icon.png"
 
 mkdir -p "$BUILD_DIR"
-swift tools/make-icon.swift "$SOURCE_PNG" 1024
 
 rm -rf "$ICONSET_DIR"
 mkdir -p "$ICONSET_DIR"
