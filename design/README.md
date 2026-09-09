@@ -1,9 +1,9 @@
 # MornAIMeter 画像素材
 
-- `ogp.psd`: 1200 × 630。MornStorage の `design/ogp.psd` と同じ配置・フォント・レイアウト。
+- `ogp.psd` / `ogp.png`: 1200 × 630。MornStorage の `design/ogp.psd` と同じ配置・フォント・レイアウト。
 - `icon.psd`: 1024 × 1024、クリーム色 (253,247,230) の不透明背景。
 
-画像の書き出し (PNG など) は行わない。すべて PSD 内で再編集する。
+編集は PSD で行い、`ogp.png` は PSD から書き出す。`ogp.png` はルート README と GitHub の Social preview に使用。
 
 ## ogp.psd の構成
 

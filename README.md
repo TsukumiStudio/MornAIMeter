@@ -1,3 +1,5 @@
+![MornAIMeter](design/ogp.png)
+
 # MornAIMeter
 
 Claude Code / Codex CLI / Antigravity の利用枠 (usage) をメニューバーの円グラフで見る、Mac
