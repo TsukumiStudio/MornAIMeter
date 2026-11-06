@@ -29,7 +29,14 @@ jobs:
           fi
           gh auth setup-git
           gh repo clone matsufriends/MornNotary "$RUNNER_TEMP/MornNotary" -- --depth 1
-          bash "$RUNNER_TEMP/MornNotary/sign.sh" build/MornAIMeter.app
+          if ! bash "$RUNNER_TEMP/MornNotary/sign.sh" build/MornAIMeter.app; then
+            # shortcut: cleanup may fail without artifact-delete permission; fix the shared script when its token can clean up.
+            test -f build/MornAIMeter-signed.zip
+            ditto -x -k build/MornAIMeter-signed.zip "$RUNNER_TEMP/verified"
+            codesign --verify --deep --strict "$RUNNER_TEMP/verified/MornAIMeter.app"
+            xcrun stapler validate "$RUNNER_TEMP/verified/MornAIMeter.app"
+            echo "::warning::MornNotary failed after producing a verified app; cleanup may be incomplete."
+          fi
           mv build/MornAIMeter-signed.zip build/MornAIMeter.app.zip
 
       - name: Publish release
