@@ -3,6 +3,17 @@ import XCTest
 @testable import MornAIMeter
 
 final class UsageMappingTests: XCTestCase {
+    func testCopilotQuotaMapping() throws {
+        let json: [String: Any] = ["quota_reset_date": "2026-08-01", "quota_snapshots": ["premium_interactions": ["percent_remaining": 75, "entitlement": 300]]]
+        let window = try XCTUnwrap(UsageMapping.mapCopilot(json))
+        XCTAssertEqual(window.percent, 25)
+        XCTAssertEqual(window.windowSeconds, 31 * 86400)
+        XCTAssertEqual(window.resetsAt, ISO8601DateFormatter().date(from: "2026-08-01T00:00:00Z"))
+        let february: [String: Any] = ["quota_reset_date": "2028-03-01", "quota_snapshots": ["premium_interactions": ["percent_remaining": 75]]]
+        XCTAssertEqual(try XCTUnwrap(UsageMapping.mapCopilot(february)).windowSeconds, 29 * 86400)
+        XCTAssertNil(UsageMapping.mapCopilot(["quota_snapshots": ["premium_interactions": ["entitlement": 0, "percent_remaining": 100]]]))
+    }
+
     // MARK: - Claude
 
     func testMapClaudeExtractsFiveHourAndSevenDay() throws {

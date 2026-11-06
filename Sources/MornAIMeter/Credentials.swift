@@ -85,6 +85,23 @@ enum Credentials {
         return output
     }
 
+    static func copilotToken() throws -> String {
+        for name in ["COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"] {
+            if let token = ProcessInfo.processInfo.environment[name], !token.isEmpty { return token }
+        }
+        if let token = try? runSecurityFindGenericPassword(service: "copilot-cli").trimmingCharacters(in: .newlines), !token.isEmpty {
+            return token
+        }
+        let path = (NSHomeDirectory() as NSString).appendingPathComponent(".copilot/config.json")
+        if let data = FileManager.default.contents(atPath: path),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let tokens = json["copilotTokens"] as? [String: String],
+           let user = json["lastLoggedInUser"] as? [String: String],
+           let host = user["host"], let login = user["login"], host == "https://github.com",
+           let token = tokens["\(host):\(login)"], !token.isEmpty { return token }
+        throw CredentialError.fileNotFound
+    }
+
     static func codexTokens() throws -> (accessToken: String, accountId: String) {
         let path = (NSHomeDirectory() as NSString).appendingPathComponent(".codex/auth.json")
         guard let data = FileManager.default.contents(atPath: path) else {

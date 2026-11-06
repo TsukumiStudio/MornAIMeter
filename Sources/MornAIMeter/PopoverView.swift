@@ -166,6 +166,7 @@ struct PopoverContentView: View {
     @AppStorage("menuBarShowCodexAdditional") private var showCodexAdditional = false
     @AppStorage("menuBarShowAntigravityGemini") private var showAntigravityGemini = false
     @AppStorage("menuBarShowAntigravityClaudeGpt") private var showAntigravityClaudeGpt = false
+    @AppStorage("menuBarShowCopilot") private var showCopilot = false
     @StateObject private var loginItem = LoginItemState()
     @StateObject private var updater = Updater()
 
@@ -233,6 +234,18 @@ struct PopoverContentView: View {
                 }
             }
 
+            HStack(alignment: .top, spacing: 8) {
+                Text("Copilot").font(.caption).foregroundStyle(.secondary).frame(width: Self.rowHeadingWidth, alignment: .leading)
+                UsageCardView(title: "月次枠", content: {
+                    if let usage = state.lastGoodCopilot {
+                        let error: String? = { if case .failure(let e)? = state.copilotResult { return e.errorDescription }; return nil }()
+                        return cardContent(percent: usage.percent, resetsAt: usage.resetsAt, windowSeconds: usage.windowSeconds, errorMessage: error)
+                    }
+                    if case .failure(let error)? = state.copilotResult { return .message(error.errorDescription ?? "取得失敗") }
+                    return .noData
+                }())
+            }
+
             Divider()
 
             Text("メニューバー表示").font(.caption).foregroundStyle(.secondary)
@@ -248,11 +261,18 @@ struct PopoverContentView: View {
                     Toggle(MenuBarGaugeSelection.antigravityGemini.label, isOn: $showAntigravityGemini)
                     Toggle(MenuBarGaugeSelection.antigravityClaudeGpt.label, isOn: $showAntigravityClaudeGpt)
                 }
+                HStack {
+                    Toggle(MenuBarGaugeSelection.copilot.label, isOn: $showCopilot)
+                }
             }
 
             Divider()
 
             HStack(spacing: 8) {
+                Button(state.isRefreshing ? "取得中…" : "利用枠を更新") {
+                    state.refresh(force: true)
+                }
+                .disabled(state.isRefreshing)
                 Button("終了") {
                     NSApp.terminate(nil)
                 }

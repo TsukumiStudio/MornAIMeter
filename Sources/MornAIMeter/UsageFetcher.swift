@@ -76,6 +76,28 @@ enum UsageFetcher {
         }
     }
 
+    static func fetchCopilot() async -> Result<WindowUsage?, ServiceUsageError> {
+        do {
+            let token = try Credentials.copilotToken()
+            var request = URLRequest(url: URL(string: "https://api.github.com/copilot_internal/user")!)
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("MornAIMeter", forHTTPHeaderField: "User-Agent")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return .failure(.network("不明な応答")) }
+            if http.statusCode == 401 || http.statusCode == 403 { return .failure(.needsLogin("copilot login")) }
+            if http.statusCode == 429 {
+                return .failure(.network("usage API 429", retryNotBefore: RetryAfterParsing.parse(header: http.value(forHTTPHeaderField: "Retry-After"), now: Date())))
+            }
+            guard http.statusCode == 200 else { return .failure(.network("usage API \(http.statusCode)")) }
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return .failure(.network("応答の解析に失敗しました")) }
+            return .success(UsageMapping.mapCopilot(json))
+        } catch is CredentialError {
+            return .failure(.needsLogin("copilot login"))
+        } catch {
+            return .failure(.network(error.localizedDescription))
+        }
+    }
+
     static func fetchClaude() async -> Result<ClaudeUsage, ServiceUsageError> {
         do {
             let token = try Credentials.claudeAccessToken()

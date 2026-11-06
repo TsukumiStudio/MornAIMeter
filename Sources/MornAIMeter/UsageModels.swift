@@ -43,6 +43,7 @@ struct CodexUsage: Equatable {
 
 /// メニューバーに表示する枠の選択肢。UserDefaults ("menuBarGauge") に保存する。
 enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
+    case copilot
     case claude5h
     case claudeWeekly
     case claudeScoped
@@ -60,6 +61,7 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
     /// claudeScoped の表示名。scopedName が渡されればそれを使い、無ければ "Fable" にフォールバックする。
     func label(scopedName: String?) -> String {
         switch self {
+        case .copilot: return "Copilot 月次枠"
         case .claude5h: return "Claude 5時間枠"
         case .claudeWeekly: return "Claude 週次枠"
         case .claudeScoped: return "Claude 週次 (\(scopedName ?? "Fable"))"
@@ -78,7 +80,8 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         codexWeekly: Bool,
         codexAdditional: Bool,
         antigravityGemini: Bool = false,
-        antigravityClaudeGpt: Bool = false
+        antigravityClaudeGpt: Bool = false,
+        copilot: Bool = false
     ) -> [MenuBarGaugeSelection] {
         var result: [MenuBarGaugeSelection] = []
         if claude5h { result.append(.claude5h) }
@@ -88,6 +91,7 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         if codexAdditional { result.append(.codexAdditional) }
         if antigravityGemini { result.append(.antigravityGemini) }
         if antigravityClaudeGpt { result.append(.antigravityClaudeGpt) }
+        if copilot { result.append(.copilot) }
         return result
     }
 
@@ -96,9 +100,13 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         for selection: MenuBarGaugeSelection,
         claude: Result<ClaudeUsage, ServiceUsageError>?,
         codex: Result<CodexUsage, ServiceUsageError>?,
-        antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil
+        antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil,
+        copilot: Result<WindowUsage?, ServiceUsageError>? = nil
     ) -> WindowUsage? {
         switch selection {
+        case .copilot:
+            guard case .success(let usage)? = copilot else { return nil }
+            return usage
         case .claude5h:
             guard case .success(let usage)? = claude else { return nil }
             return usage.fiveHour
@@ -128,9 +136,10 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         for selection: MenuBarGaugeSelection,
         claude: Result<ClaudeUsage, ServiceUsageError>?,
         codex: Result<CodexUsage, ServiceUsageError>?,
-        antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil
+        antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil,
+        copilot: Result<WindowUsage?, ServiceUsageError>? = nil
     ) -> Double? {
-        window(for: selection, claude: claude, codex: codex, antigravity: antigravity)?.percent
+        window(for: selection, claude: claude, codex: codex, antigravity: antigravity, copilot: copilot)?.percent
     }
 
     /// メニューバーの円グラフ1個ぶんの描画パラメータ。値が取れない枠は usedFraction が nil (輪郭だけの空円)。
@@ -139,10 +148,11 @@ enum MenuBarGaugeSelection: String, CaseIterable, Identifiable {
         claude: Result<ClaudeUsage, ServiceUsageError>?,
         codex: Result<CodexUsage, ServiceUsageError>?,
         antigravity: Result<AntigravityUsage, ServiceUsageError>? = nil,
+        copilot: Result<WindowUsage?, ServiceUsageError>? = nil,
         now: Date = Date()
     ) -> [GaugeCircleParams] {
         selections.map { selection in
-            guard let w = window(for: selection, claude: claude, codex: codex, antigravity: antigravity) else {
+            guard let w = window(for: selection, claude: claude, codex: codex, antigravity: antigravity, copilot: copilot) else {
                 return GaugeCircleParams(usedFraction: nil, elapsedFraction: nil)
             }
             let elapsed = UsageFormat.windowPosition(
@@ -173,6 +183,25 @@ enum UsageMapping {
 
     static func isWeekly(windowSeconds: Double) -> Bool {
         windowSeconds >= weeklyThresholdSeconds
+    }
+
+    // shortcut: internal API の月次枠のみ対応、GitHub が正式な残量 API を提供したら移行する。
+    static func mapCopilot(_ json: [String: Any]) -> WindowUsage? {
+        guard let snapshots = json["quota_snapshots"] as? [String: Any],
+              let quota = snapshots["premium_interactions"] as? [String: Any],
+              (quota["unlimited"] as? Bool) != true else { return nil }
+        let entitlement = (quota["entitlement"] as? NSNumber)?.doubleValue
+        if let entitlement, entitlement <= 0 { return nil }
+        let remaining = (quota["remaining"] as? NSNumber)?.doubleValue
+        guard let percent = (quota["percent_remaining"] as? NSNumber)?.doubleValue
+                ?? (entitlement != nil && remaining != nil ? remaining! / entitlement! * 100 : nil),
+              percent.isFinite else { return nil }
+        let reset = parseDate(json["quota_reset_date_utc"]) ?? (json["quota_reset_date"] as? String).flatMap { parseDate($0 + "T00:00:00Z") }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let start = reset.flatMap { calendar.date(byAdding: .month, value: -1, to: $0) }
+        let windowSeconds = reset.flatMap { end in start.map { end.timeIntervalSince($0) } } ?? 0
+        return WindowUsage(percent: 100 - percent, resetsAt: reset, windowSeconds: windowSeconds)
     }
 
     static func mapClaude(_ json: [String: Any]) -> ClaudeUsage {

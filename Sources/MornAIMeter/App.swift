@@ -11,6 +11,8 @@ struct MornAIMeterApp: App {
     @AppStorage("menuBarShowAntigravityGemini") private var showAntigravityGemini = false
     @AppStorage("menuBarShowAntigravityClaudeGpt") private var showAntigravityClaudeGpt = false
 
+    @AppStorage("menuBarShowCopilot") private var showCopilot = false
+
     var body: some Scene {
         MenuBarExtra {
             PopoverContentView(state: state)
@@ -22,7 +24,8 @@ struct MornAIMeterApp: App {
                 codexWeekly: showCodexWeekly,
                 codexAdditional: showCodexAdditional,
                 antigravityGemini: showAntigravityGemini,
-                antigravityClaudeGpt: showAntigravityClaudeGpt
+                antigravityClaudeGpt: showAntigravityClaudeGpt,
+                copilot: showCopilot
             )
             if selections.isEmpty {
                 Text("--")
@@ -31,7 +34,8 @@ struct MornAIMeterApp: App {
                     selections: selections,
                     claude: state.claudeResult,
                     codex: state.codexResult,
-                    antigravity: state.antigravityResult
+                    antigravity: state.antigravityResult,
+                    copilot: state.copilotResult
                 )))
             }
         }

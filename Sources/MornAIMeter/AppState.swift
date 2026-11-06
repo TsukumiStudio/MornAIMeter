@@ -8,12 +8,16 @@ final class AppState: ObservableObject {
     @Published private(set) var lastGoodClaude: ClaudeUsage?
     @Published private(set) var lastGoodCodex: CodexUsage?
     @Published private(set) var lastGoodAntigravity: AntigravityUsage?
+    @Published private(set) var copilotResult: Result<WindowUsage?, ServiceUsageError>?
+    @Published private(set) var lastGoodCopilot: WindowUsage?
     @Published private(set) var isRefreshing = false
 
     private var timer: Timer?
     private let refreshInterval: TimeInterval = 5 * 60
     private let minFetchInterval: TimeInterval = 60
 
+    private var lastFetchedAtCopilot: Date?
+    private var retryNotBeforeCopilot: Date?
     private var lastFetchedAtClaude: Date?
     private var lastFetchedAtCodex: Date?
     private var lastFetchedAtAntigravity: Date?
@@ -43,7 +47,8 @@ final class AppState: ObservableObject {
         let fetchClaude = Self.shouldFetch(now: now, lastFetchedAt: lastFetchedAtClaude, retryNotBefore: retryNotBeforeClaude, minInterval: minFetchInterval, force: force)
         let fetchCodex = Self.shouldFetch(now: now, lastFetchedAt: lastFetchedAtCodex, retryNotBefore: retryNotBeforeCodex, minInterval: minFetchInterval, force: force)
         let fetchAntigravity = Self.shouldFetch(now: now, lastFetchedAt: lastFetchedAtAntigravity, retryNotBefore: retryNotBeforeAntigravity, minInterval: minFetchInterval, force: force)
-        guard fetchClaude || fetchCodex || fetchAntigravity else { return }
+        let fetchCopilot = Self.shouldFetch(now: now, lastFetchedAt: lastFetchedAtCopilot, retryNotBefore: retryNotBeforeCopilot, minInterval: minFetchInterval, force: force)
+        guard fetchClaude || fetchCodex || fetchAntigravity || fetchCopilot else { return }
         isRefreshing = true
         Task {
             async let claudeTask: Result<ClaudeUsage, ServiceUsageError>? = {
@@ -58,6 +63,20 @@ final class AppState: ObservableObject {
                 guard fetchAntigravity else { return nil }
                 return await UsageFetcher.fetchAntigravity()
             }()
+            async let copilotTask: Result<WindowUsage?, ServiceUsageError>? = {
+                guard fetchCopilot else { return nil }
+                return await UsageFetcher.fetchCopilot()
+            }()
+            let copilot = await copilotTask
+            if let copilot {
+                copilotResult = copilot
+                lastFetchedAtCopilot = Date()
+                switch copilot {
+                case .success(let usage): lastGoodCopilot = usage; retryNotBeforeCopilot = nil
+                case .failure(.network(_, let retry)): if let retry { retryNotBeforeCopilot = retry }
+                case .failure(.needsLogin): break
+                }
+            }
             let claude = await claudeTask
             let codex = await codexTask
             let antigravity = await antigravityTask
